@@ -84,6 +84,12 @@ export default function JobPilot() {
   const [filterStatus, setFilterStatus] = useState("All");
   const [activeBoards, setActiveBoards] = useState(["LinkedIn", "Wellfound", "Indeed", "Naukri", "Greenhouse"]);
   const [selectedAI, setSelectedAI] = useState("Claude (Anthropic)");
+  const [aiBackends, setAiBackends] = useState([
+    { name: "Claude (Anthropic)", model: "claude-sonnet-4-20250514", url: "https://api.anthropic.com/v1", apiKey: "" },
+    { name: "OpenAI",             model: "gpt-4o",                   url: "https://api.openai.com/v1",  apiKey: "" },
+    { name: "Ollama (Local)",     model: "qwen2.5-coder:7b",         url: "http://localhost:11434",     apiKey: "" },
+    { name: "MCP Server",         model: "custom",                   url: "",                           apiKey: "" },
+  ]);
   const [targetUrl, setTargetUrl] = useState("");
   const [autofillRunning, setAutofillRunning] = useState(false);
   const [autofillDone, setAutofillDone] = useState(false);
@@ -203,12 +209,9 @@ export default function JobPilot() {
     { id: "settings", label: "Settings", icon: "⚙" },
   ];
 
-  const AI_BACKENDS = [
-    { name: "Claude (Anthropic)", model: "claude-sonnet-4-20250514" },
-    { name: "OpenAI", model: "gpt-4o" },
-    { name: "Ollama (Local)", model: "qwen2.5-coder:7b" },
-    { name: "MCP Server", model: "custom endpoint" },
-  ];
+  const updateBackend = (name: string, field: "model" | "url" | "apiKey", value: string) => {
+    setAiBackends(prev => prev.map(b => b.name === name ? { ...b, [field]: value } : b));
+  };
 
   const FIELD_MAPPING = [
     ["Full Name", "Zaid M.", "✓"],
@@ -613,20 +616,67 @@ export default function JobPilot() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
               <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 12, padding: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16, color: "#94a3b8" }}>AI Backend</div>
-                {AI_BACKENDS.map(({ name, model }) => {
+                {aiBackends.map((backend) => {
+                  const { name, model, url, apiKey } = backend;
                   const active = selectedAI === name;
                   return (
-                    <div
-                      key={name}
-                      onClick={() => { setSelectedAI(name); addLog("info", "CONFIG", `AI backend switched to ${name} (${model})`); }}
-                      style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 8, marginBottom: 6, background: active ? "rgba(56,189,248,0.08)" : "transparent", border: `1px solid ${active ? "#0369a1" : "#0f172a"}`, cursor: "pointer", transition: "all 0.2s" }}
-                    >
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: active ? "#10b981" : "#334155", flexShrink: 0 }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: active ? 600 : 400, color: active ? "#e2e8f0" : "#64748b" }}>{name}</div>
-                        <div style={{ fontSize: 11, color: "#334155", fontFamily: "monospace" }}>{model}</div>
+                    <div key={name} style={{ marginBottom: 6 }}>
+                      <div
+                        onClick={() => { setSelectedAI(name); addLog("info", "CONFIG", `AI backend switched to ${name} (${model})`); }}
+                        style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: active ? "8px 8px 0 0" : 8, background: active ? "rgba(56,189,248,0.08)" : "transparent", border: `1px solid ${active ? "#0369a1" : "#0f172a"}`, borderBottom: active ? "1px solid #0f172a" : undefined, cursor: "pointer", transition: "all 0.2s" }}
+                      >
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: active ? "#10b981" : "#334155", flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: active ? 600 : 400, color: active ? "#e2e8f0" : "#64748b" }}>{name}</div>
+                          <div style={{ fontSize: 11, color: "#475569", fontFamily: "monospace" }}>{model}</div>
+                        </div>
+                        {active
+                          ? <span style={{ fontSize: 11, color: "#38bdf8" }}>Active ▾</span>
+                          : <span style={{ fontSize: 11, color: "#334155" }}>▸</span>
+                        }
                       </div>
-                      {active && <span style={{ fontSize: 11, color: "#38bdf8" }}>Active</span>}
+
+                      {active && (
+                        <div style={{ background: "#070d1a", border: "1px solid #0369a1", borderTop: "none", borderRadius: "0 0 8px 8px", padding: "14px 16px", display: "flex", flexDirection: "column" as const, gap: 10 }}>
+                          {/* Model */}
+                          <div>
+                            <div style={{ fontSize: 10, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>Model</div>
+                            <input
+                              value={model}
+                              onChange={e => updateBackend(name, "model", e.target.value)}
+                              placeholder="e.g. claude-sonnet-4-20250514"
+                              style={{ width: "100%", background: "#0a1628", border: "1px solid #1e293b", borderRadius: 6, padding: "7px 10px", color: "#e2e8f0", fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}
+                            />
+                          </div>
+                          {/* Endpoint URL */}
+                          <div>
+                            <div style={{ fontSize: 10, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>API Endpoint URL</div>
+                            <input
+                              value={url}
+                              onChange={e => updateBackend(name, "url", e.target.value)}
+                              placeholder="https://api.anthropic.com/v1"
+                              style={{ width: "100%", background: "#0a1628", border: "1px solid #1e293b", borderRadius: 6, padding: "7px 10px", color: "#e2e8f0", fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}
+                            />
+                          </div>
+                          {/* API Key */}
+                          <div>
+                            <div style={{ fontSize: 10, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>API Key</div>
+                            <input
+                              type="password"
+                              value={apiKey}
+                              onChange={e => updateBackend(name, "apiKey", e.target.value)}
+                              placeholder={name === "Ollama (Local)" ? "Not required for local" : "sk-…"}
+                              style={{ width: "100%", background: "#0a1628", border: "1px solid #1e293b", borderRadius: 6, padding: "7px 10px", color: "#e2e8f0", fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}
+                            />
+                          </div>
+                          <button
+                            onClick={() => addLog("success", "CONFIG", `Saved: ${name} → model=${model}, url=${url || "(default)"}, key=${apiKey ? "••••" + apiKey.slice(-4) : "(none)"}`)}
+                            style={{ alignSelf: "flex-start" as const, padding: "6px 16px", borderRadius: 6, border: "none", background: "linear-gradient(135deg, #0ea5e9, #818cf8)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                          >
+                            Save Changes
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
