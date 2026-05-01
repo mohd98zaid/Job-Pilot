@@ -68,7 +68,7 @@ const Toggle = ({ on, onChange }: { on: boolean; onChange: () => void }) => (
 );
 
 export default function JobPilot() {
-  const [tab, setTab] = useState("discover");
+  const [tab, setTab] = useState("dashboard");
   const [searching, setSearching] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -202,11 +202,12 @@ export default function JobPilot() {
   };
 
   const TABS = [
-    { id: "discover", label: "Discover", icon: "◎" },
-    { id: "results", label: "Results", icon: "≡", count: jobs.length || null },
-    { id: "tracker", label: "Tracker", icon: "◈" },
-    { id: "autofill", label: "Auto-Fill", icon: "✦" },
-    { id: "settings", label: "Settings", icon: "⚙" },
+    { id: "dashboard", label: "Dashboard", icon: "▦" },
+    { id: "discover",  label: "Discover",  icon: "◎" },
+    { id: "results",   label: "Results",   icon: "≡", count: jobs.length || null },
+    { id: "tracker",   label: "Tracker",   icon: "◈" },
+    { id: "autofill",  label: "Auto-Fill", icon: "✦" },
+    { id: "settings",  label: "Settings",  icon: "⚙" },
   ];
 
   const updateBackend = (name: string, field: "model" | "url" | "apiKey", value: string) => {
@@ -257,6 +258,175 @@ export default function JobPilot() {
 
       {/* Content */}
       <div style={{ flex: 1, padding: 28, maxWidth: 1100, width: "100%", margin: "0 auto" }}>
+
+        {/* ─── DASHBOARD ─── */}
+        {tab === "dashboard" && (() => {
+          const total = trackerJobs.length;
+          const avgScore = Math.round(trackerJobs.reduce((a, j) => a + j.score, 0) / total);
+          const interviews = trackerJobs.filter(j => j.status === "Interview").length;
+          const offers = trackerJobs.filter(j => j.status === "Offer").length;
+          const applied = trackerJobs.filter(j => j.status === "Applied").length;
+          const responseRate = total > 0 ? Math.round(((interviews + offers) / Math.max(applied + interviews + offers, 1)) * 100) : 0;
+
+          const pipeline = [
+            { label: "Discovered", count: trackerJobs.filter(j => j.status === "Discovered").length, color: "#64748b", accent: "rgba(100,116,139,0.15)" },
+            { label: "Saved",      count: trackerJobs.filter(j => j.status === "Saved").length,      color: "#0ea5e9", accent: "rgba(14,165,233,0.12)" },
+            { label: "Applied",    count: applied,                                                    color: "#8b5cf6", accent: "rgba(139,92,246,0.15)" },
+            { label: "Interview",  count: interviews,                                                 color: "#f59e0b", accent: "rgba(245,158,11,0.15)" },
+            { label: "Offer",      count: offers,                                                     color: "#10b981", accent: "rgba(16,185,129,0.15)" },
+            { label: "Rejected",   count: trackerJobs.filter(j => j.status === "Rejected").length,   color: "#ef4444", accent: "rgba(239,68,68,0.1)" },
+          ];
+          const maxCount = Math.max(...pipeline.map(p => p.count), 1);
+
+          const sources = trackerJobs.reduce((acc, j) => { acc[j.source] = (acc[j.source] || 0) + 1; return acc; }, {} as Record<string, number>);
+          const sourceList = Object.entries(sources).sort((a, b) => b[1] - a[1]);
+          const maxSource = Math.max(...sourceList.map(s => s[1]), 1);
+
+          const topMatches = [...trackerJobs].sort((a, b) => b.score - a.score).slice(0, 3);
+
+          const kpis = [
+            { label: "Total Tracked", value: String(total),           sub: "across all stages",      color: "#38bdf8", icon: "◈" },
+            { label: "Avg Match Score", value: `${avgScore}`,         sub: "against your profile",   color: avgScore >= 85 ? "#10b981" : "#f59e0b", icon: "◎" },
+            { label: "Interviews",    value: String(interviews),      sub: "active conversations",   color: "#f59e0b", icon: "◆" },
+            { label: "Response Rate", value: `${responseRate}%`,      sub: "applied → interview",    color: responseRate >= 30 ? "#10b981" : "#8b5cf6", icon: "↑" },
+          ];
+
+          return (
+            <div style={{ animation: "slideIn 0.3s ease" }}>
+              {/* Greeting */}
+              <div style={{ marginBottom: 28, display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ fontSize: 12, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>Good afternoon</div>
+                  <h2 style={{ fontSize: 26, fontWeight: 700, margin: 0, letterSpacing: "-0.03em" }}>{profile.Name} <span style={{ color: "#38bdf8", fontWeight: 400, fontSize: 20 }}>— here's your search</span></h2>
+                </div>
+                <button
+                  onClick={() => setTab("discover")}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg, #0ea5e9, #818cf8)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  <span>◎</span> New Search
+                </button>
+              </div>
+
+              {/* KPI row */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+                {kpis.map(k => (
+                  <div key={k.label} style={{ background: "#0a1628", border: `1px solid ${k.color}25`, borderRadius: 14, padding: "20px 20px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                      <span style={{ fontSize: 11, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>{k.label}</span>
+                      <span style={{ fontSize: 14, color: k.color, opacity: 0.7 }}>{k.icon}</span>
+                    </div>
+                    <div style={{ fontSize: 36, fontWeight: 700, color: k.color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>{k.value}</div>
+                    <div style={{ fontSize: 11, color: "#334155", marginTop: 6 }}>{k.sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+                {/* Pipeline funnel */}
+                <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 14, padding: 22 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#94a3b8", marginBottom: 18 }}>Application Pipeline</div>
+                  <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
+                    {pipeline.map((stage, i) => (
+                      <div key={stage.label}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: stage.color, flexShrink: 0 }} />
+                            <span style={{ fontSize: 12, color: "#94a3b8" }}>{stage.label}</span>
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: stage.color, fontFamily: "'JetBrains Mono', monospace" }}>{stage.count}</span>
+                        </div>
+                        <div style={{ height: 6, background: "#0f172a", borderRadius: 3, overflow: "hidden" }}>
+                          <div style={{ width: `${(stage.count / maxCount) * 100}%`, height: "100%", background: stage.color, borderRadius: 3, opacity: 0.85, transition: "width 0.8s ease" }} />
+                        </div>
+                        {i < pipeline.length - 1 && stage.count > 0 && pipeline[i + 1].count > 0 && (
+                          <div style={{ fontSize: 10, color: "#334155", marginTop: 2, textAlign: "right" as const, fontFamily: "monospace" }}>
+                            {Math.round((pipeline[i + 1].count / stage.count) * 100)}% → next
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Source breakdown + top matches */}
+                <div style={{ display: "flex", flexDirection: "column" as const, gap: 16 }}>
+                  {/* Source breakdown */}
+                  <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 14, padding: 22 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#94a3b8", marginBottom: 14 }}>Source Breakdown</div>
+                    <div style={{ display: "flex", flexDirection: "column" as const, gap: 10 }}>
+                      {sourceList.map(([src, cnt]) => (
+                        <div key={src} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontSize: 11, color: "#64748b", width: 80, flexShrink: 0 }}>{src}</span>
+                          <div style={{ flex: 1, height: 5, background: "#0f172a", borderRadius: 3, overflow: "hidden" }}>
+                            <div style={{ width: `${(cnt / maxSource) * 100}%`, height: "100%", background: "linear-gradient(90deg, #0ea5e9, #818cf8)", borderRadius: 3, transition: "width 0.6s ease" }} />
+                          </div>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#38bdf8", fontFamily: "monospace", width: 16, textAlign: "right" as const }}>{cnt}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Score distribution mini */}
+                  <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 14, padding: 22 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#94a3b8", marginBottom: 14 }}>Score Distribution</div>
+                    <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 60 }}>
+                      {[...trackerJobs].sort((a, b) => b.score - a.score).map(j => {
+                        const barColor = j.score >= 90 ? "#10b981" : j.score >= 80 ? "#f59e0b" : "#ef4444";
+                        const barH = Math.round((j.score / 100) * 44);
+                        return (
+                          <div key={j.id} style={{ flex: 1, display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3 }}>
+                            <div style={{ width: "100%", height: barH, background: barColor, borderRadius: "3px 3px 0 0", opacity: 0.85 }} title={`${j.company}: ${j.score}`} />
+                            <div style={{ fontSize: 9, color: "#475569", fontFamily: "monospace" }}>{j.score}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
+                      {[["#10b981", `${[...trackerJobs].filter(j => j.score >= 90).length} excellent`], ["#f59e0b", `${[...trackerJobs].filter(j => j.score >= 80 && j.score < 90).length} good`], ["#ef4444", `${[...trackerJobs].filter(j => j.score < 80).length} weak`]].map(([color, label]) => (
+                        <div key={label as string} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: 2, background: color as string }} />
+                          <span style={{ fontSize: 10, color: "#475569" }}>{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Top Matches */}
+              <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 14, padding: 22 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#94a3b8" }}>Top Matches</div>
+                  <button onClick={() => setTab("results")} style={{ fontSize: 11, color: "#38bdf8", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>View all →</button>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column" as const, gap: 10 }}>
+                  {topMatches.map(job => (
+                    <div
+                      key={job.id}
+                      onClick={() => { setSelectedJob(job); setFilterStatus("All"); if (jobs.length === 0) setJobs(INITIAL_JOBS); setTab("results"); }}
+                      style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", background: "#070d1a", borderRadius: 10, border: "1px solid #1e293b", cursor: "pointer", transition: "border-color 0.2s" }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = "#0369a1")}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = "#1e293b")}
+                    >
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: `${job.color}20`, border: `1px solid ${job.color}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: job.color, flexShrink: 0, fontFamily: "monospace" }}>{job.logo}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{job.title}</div>
+                        <div style={{ fontSize: 11, color: "#64748b" }}>{job.company} · {job.location}</div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <Badge status={job.status} />
+                        <div style={{ textAlign: "right" as const }}>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: job.score >= 90 ? "#10b981" : job.score >= 80 ? "#f59e0b" : "#ef4444", fontFamily: "monospace", lineHeight: 1 }}>{job.score}</div>
+                          <div style={{ fontSize: 9, color: "#334155", marginTop: 2 }}>score</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ─── DISCOVER ─── */}
         {tab === "discover" && (
