@@ -3,6 +3,10 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import dotenv from "dotenv";
+
+// Load environment variables
+dotenv.config({ path: "../../.env.local" });
 
 const app: Express = express();
 
