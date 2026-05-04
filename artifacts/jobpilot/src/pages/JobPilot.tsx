@@ -984,6 +984,15 @@ export default function JobPilot() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 12, padding: 20 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 14, color: "#94a3b8" }}>Profile</div>
+                  {(Object.entries(profile) as [string, string][]).map(([k, v]) => (
+                    <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #0f172a", fontSize: 13, gap: 12 }}>
+                      <span style={{ color: "#475569", flexShrink: 0 }}>{k}</span>
+                      <input
+                        value={v}
+                        onChange={e => setProfile(prev => ({ ...prev, [k]: e.target.value }))}
+                        style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: 13, textAlign: "right" as const, fontFamily: "inherit", flex: 1 }}
+                      />
                     </div>
                   ))}
                   
