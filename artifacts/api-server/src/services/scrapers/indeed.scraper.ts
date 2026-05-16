@@ -29,8 +29,11 @@ export async function scrapeIndeed(
     onLog("info", `Indeed: searching for "${opts.role}" in "${opts.region}"...`);
 
     const days = dateFilterToParam(opts.dateFilter);
-    // Use in.indeed.com for India/Gulf region, otherwise indeed.com
-    const isIndia = opts.region.toLowerCase().includes("india") || opts.region.toLowerCase().includes("in");
+    // Route to the correct Indeed regional domain
+    const regionLower = opts.region.toLowerCase();
+    const isIndia = (regionLower.includes("india") || regionLower === "in") &&
+                    !regionLower.includes("dubai") && !regionLower.includes("uae") &&
+                    !regionLower.includes("abu dhabi") && !regionLower.includes("sharjah");
     const baseUrl = isIndia ? "https://in.indeed.com" : "https://www.indeed.com";
     const searchUrl = `${baseUrl}/jobs?q=${encodeURIComponent(opts.role)}&l=${encodeURIComponent(opts.region)}&fromage=${days}&sort=date`;
 
@@ -80,7 +83,8 @@ export async function scrapeIndeed(
           if (title && company) {
             extracted.push({
               title, company,
-              location: locationEl?.textContent?.trim() || args.base.includes("in.") ? "India" : "Remote",
+              // Fixed: ternary precedence bug — location must be evaluated before OR
+              location: locationEl?.textContent?.trim() || (args.base.includes("in.") ? "India" : "Remote"),
               salary: salaryEl?.textContent?.trim() || "Not listed",
               url,
               postedAt: postedEl?.textContent?.trim(),
@@ -94,15 +98,39 @@ export async function scrapeIndeed(
       return extracted;
     }, { source: SOURCE, base: baseUrl });
 
+    // ── Location filter ──────────────────────────────────────────────────────
+    // Indeed's search URL already filters by location. We only hard-reject jobs
+    // that explicitly mention a DIFFERENT city/country in their location field.
+    // Empty location or "Remote" always passes through.
+    const regionNorm = opts.region.toLowerCase().split(/[,/\s]+/).filter((p) => p.length > 2);
+
+    // Known "other regions" that would indicate location drift
+    const OTHER_MAJOR_REGIONS = [
+      "india", "bangalore", "mumbai", "delhi", "hyderabad", "chennai", "pune", "kolkata",
+      "usa", "new york", "san francisco", "london", "singapore", "australia", "canada",
+    ].filter((r) => !regionNorm.includes(r)); // don't reject if user asked for this
+
     for (const job of jobs) {
-      const scrapedJob: ScrapedJob = {
-        ...job,
-        logo: "IN",
-        color: BASE_COLOR,
-      };
+      const jobLocLower = (job.location || "").toLowerCase();
+      // Empty location → trust the search URL (pass through)
+      if (!jobLocLower || jobLocLower === "not listed") {
+        const scrapedJob: ScrapedJob = { ...job, logo: "IN", color: BASE_COLOR };
+        results.push(scrapedJob);
+        onJob(scrapedJob);
+        continue;
+      }
+
+      const isRemote = jobLocLower.includes("remote") || jobLocLower.includes("anywhere") || jobLocLower.includes("worldwide");
+      const matchesRegion = isRemote || regionNorm.some((part) => jobLocLower.includes(part));
+      const isOtherRegion = !matchesRegion && OTHER_MAJOR_REGIONS.some((r) => jobLocLower.includes(r));
+
+      if (isOtherRegion) continue; // hard reject — explicitly wrong location
+
+      const scrapedJob: ScrapedJob = { ...job, logo: "IN", color: BASE_COLOR };
       results.push(scrapedJob);
       onJob(scrapedJob);
     }
+
 
     onLog("success", `Indeed: found ${results.length} listings`);
   } catch (err: any) {

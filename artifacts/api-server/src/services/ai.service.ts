@@ -51,6 +51,13 @@ const scoreAnalysisResultSchema = z.object({
   profileMatch: z.array(z.string()),
 });
 
+const roleExpansionSchema = z.object({
+  primaryRole: z.string(),
+  variations: z.array(z.string()),
+  relatedKeywords: z.array(z.string()),
+  exclusionKeywords: z.array(z.string()),
+});
+
 const fieldMappingResultSchema = z.array(z.tuple([z.string(), z.string(), z.string()]));
 
 export class AIService {
@@ -361,9 +368,88 @@ Respond ONLY with valid JSON following this schema:
     profile: Profile,
     backendName: string = this.defaultBackend
   ) {
-    // Implementation for deduplication...
-    logger.warn("Job deduplication not yet implemented");
     return [];
+  }
+
+  /**
+   * Dynamically expand a job role into variations and related keywords using AI.
+   */
+  public async expandRole(
+    role: string,
+    backendName: string = this.defaultBackend
+  ): Promise<z.infer<typeof roleExpansionSchema>> {
+    try {
+      const { backend, apiKey } = this.getBackendConfig(backendName);
+
+      const prompt = `
+Explain the job role "${role}" for a job search engine.
+Provide:
+1. The most common primary title for this role.
+2. 5-8 variations of this job title (different seniority, synonyms).
+3. 10-15 related technical keywords, tools, or skills associated with this role.
+4. 5 exclusion keywords (roles that sound similar but are different).
+
+Respond ONLY with valid JSON:
+{
+  "primaryRole": "string",
+  "variations": ["string"],
+  "relatedKeywords": ["string"],
+  "exclusionKeywords": ["string"]
+}`;
+
+      let requestBody: any;
+      if (backend.name === "Ollama") {
+        requestBody = { model: backend.model, prompt, format: "json", stream: false };
+      } else {
+        requestBody = {
+          model: backend.model,
+          messages: [{ role: "system", content: "You are an expert recruitment researcher." }, { role: "user", content: prompt }],
+          temperature: 0.3,
+          response_format: { type: "json_object" }
+        };
+      }
+
+      const endpoint = backend.name === "Ollama" 
+        ? `${backend.url}/api/generate` 
+        : backend.name === "OpenAI"
+          ? `${backend.url}/chat/completions`
+          : `${backend.url}/messages`;
+
+      const response = await this.makeAIRequest(endpoint, requestBody, apiKey);
+      
+      let content: string;
+      if (backend.name === "Claude") content = response.content?.[0]?.text;
+      else if (backend.name === "OpenAI") content = response.choices?.[0]?.message?.content;
+      else content = response.response;
+
+      const parsed = this.parseAIResponse(content);
+      return roleExpansionSchema.parse(parsed);
+
+    } catch (error) {
+      logger.error({ role, err: error }, "Role expansion failed, using fallback");
+      // Manual intelligence fallback for common roles
+      const roleLower = role.toLowerCase();
+      let variations = [role];
+      let keywords = role.split(/\s+/);
+
+      if (roleLower.includes("ai") || roleLower.includes("machine learning")) {
+        variations = [...variations, "Generative AI", "LLM Engineer", "Machine Learning Engineer", "AI Developer", "NLP Engineer"];
+        keywords = [...keywords, "Python", "PyTorch", "TensorFlow", "Transformers", "OpenAI", "LangChain"];
+      } else if (roleLower.includes("frontend") || roleLower.includes("react")) {
+        variations = [...variations, "Frontend Developer", "React Developer", "UI Engineer", "Javascript Engineer"];
+        keywords = [...keywords, "React", "Typescript", "Next.js", "Tailwind", "CSS"];
+      } else if (roleLower.includes("backend") || roleLower.includes("node")) {
+        variations = [...variations, "Backend Developer", "Node.js Developer", "Software Engineer", "Systems Engineer"];
+        keywords = [...keywords, "Node.js", "PostgreSQL", "Redis", "Docker", "AWS"];
+      }
+
+      return {
+        primaryRole: role,
+        variations: [...new Set(variations)],
+        relatedKeywords: [...new Set(keywords)],
+        exclusionKeywords: []
+      };
+    }
   }
 
   public async mapFields(

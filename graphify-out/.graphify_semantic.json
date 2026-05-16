@@ -1,0 +1,127 @@
+{
+  "nodes": [
+    {
+      "id": "root_readme_jobpilot",
+      "label": "JobPilot",
+      "file_type": "concept",
+      "source_file": "README.md"
+    },
+    {
+      "id": "root_readme_hybrid_discovery",
+      "label": "Hybrid Job Discovery",
+      "file_type": "concept",
+      "source_file": "README.md"
+    },
+    {
+      "id": "services_job_search_ai_discovery_pipeline",
+      "label": "AI Discovery Pipeline",
+      "file_type": "code",
+      "source_file": "artifacts/api-server/src/services/job-search.service.ts"
+    },
+    {
+      "id": "services_scrapers_scraper_infrastructure",
+      "label": "Scraper Infrastructure",
+      "file_type": "code",
+      "source_file": "artifacts/api-server/src/services/scrapers/types.ts"
+    },
+    {
+      "id": "services_scrapers_playwright_stealth",
+      "label": "Playwright Stealth",
+      "file_type": "concept",
+      "source_file": "artifacts/api-server/src/services/scrapers/browser.ts"
+    },
+    {
+      "id": "services_scrapers_indeed_scraper",
+      "label": "Indeed Scraper",
+      "file_type": "code",
+      "source_file": "artifacts/api-server/src/services/scrapers/indeed.scraper.ts"
+    },
+    {
+      "id": "lib_db_drizzle_orm",
+      "label": "Drizzle ORM",
+      "file_type": "concept",
+      "source_file": "lib/db/src/index.ts"
+    },
+    {
+      "id": "api_spec_openapi",
+      "label": "API Specification",
+      "file_type": "document",
+      "source_file": "lib/api-spec/openapi.yaml"
+    },
+    {
+      "id": "root_readme_ollama",
+      "label": "Ollama Integration",
+      "file_type": "concept",
+      "source_file": "README.md"
+    }
+  ],
+  "edges": [
+    {
+      "source": "root_readme_jobpilot",
+      "target": "root_readme_hybrid_discovery",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md"
+    },
+    {
+      "source": "root_readme_hybrid_discovery",
+      "target": "services_job_search_ai_discovery_pipeline",
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "artifacts/api-server/src/services/job-search.service.ts"
+    },
+    {
+      "source": "services_job_search_ai_discovery_pipeline",
+      "target": "services_scrapers_scraper_infrastructure",
+      "relation": "orchestrates",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "artifacts/api-server/src/services/job-search.service.ts"
+    },
+    {
+      "source": "services_scrapers_scraper_infrastructure",
+      "target": "services_scrapers_playwright_stealth",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "artifacts/api-server/src/services/scrapers/browser.ts"
+    },
+    {
+      "source": "services_scrapers_indeed_scraper",
+      "target": "services_scrapers_scraper_infrastructure",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "artifacts/api-server/src/services/scrapers/indeed.scraper.ts"
+    },
+    {
+      "source": "root_readme_jobpilot",
+      "target": "lib_db_drizzle_orm",
+      "relation": "persists_via",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md"
+    },
+    {
+      "source": "root_readme_jobpilot",
+      "target": "api_spec_openapi",
+      "relation": "defines_api_via",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md"
+    },
+    {
+      "source": "services_job_search_ai_discovery_pipeline",
+      "target": "root_readme_ollama",
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "artifacts/api-server/src/services/ai.service.ts"
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

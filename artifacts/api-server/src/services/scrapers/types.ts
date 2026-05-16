@@ -19,6 +19,8 @@ export interface SearchOptions {
   region: string;
   dateFilter?: string;   // "Last 24 hours" | "Last 7 days" | "Last 14 days" | "Last 30 days"
   maxResults?: number;
+  aliases?: string[];    // AI-expanded role variations
+  exclusions?: string[]; // Keywords to filter out
 }
 
 export interface ScrapeResult {

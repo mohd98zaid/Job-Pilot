@@ -19,8 +19,10 @@ export async function scrapeInstaHyre(
   try {
     onLog("info", `InstaHyre: searching for "${opts.role}"...`);
     const searchUrl = `https://www.instahyre.com/search-jobs/?q=${encodeURIComponent(opts.role)}&l=${encodeURIComponent(opts.region)}`;
-    await page.goto(searchUrl, { waitUntil: "networkidle", timeout: 30000 });
-    await humanDelay(2000, 3500);
+
+    // InstaHyre is a SPA — networkidle never fires. Use domcontentloaded + wait for render.
+    await page.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await humanDelay(3000, 5000); // Allow React components to mount
     await humanScroll(page, 3);
     await humanDelay(1000, 2000);
 
@@ -38,14 +40,28 @@ export async function scrapeInstaHyre(
           const title = titleEl?.textContent?.trim();
           const company = companyEl?.textContent?.trim();
           if (title && company) {
-            extracted.push({ title, company, location: locationEl?.textContent?.trim() || "India", salary: salaryEl?.textContent?.trim() || "Not disclosed", url: href || "https://www.instahyre.com", source, externalId: href });
+            extracted.push({
+              title,
+              company,
+              location: locationEl?.textContent?.trim() || "",
+              salary: salaryEl?.textContent?.trim() || "Not disclosed",
+              url: href || "https://www.instahyre.com",
+              source,
+              externalId: href,
+            });
           }
         } catch (_) {}
       });
       return extracted;
     }, SOURCE);
 
+    // Strict location filter — only emit jobs matching the user's region
+    const regionParts = opts.region.toLowerCase().split(/[,/\s]+/).filter(Boolean);
     for (const job of jobs) {
+      const locLower = (job.location || "").toLowerCase();
+      const isRemote = locLower.includes("remote") || locLower.includes("anywhere");
+      if (!isRemote && !regionParts.some((p) => locLower.includes(p))) continue;
+
       const scrapedJob: ScrapedJob = { ...job, logo: "IH", color: BASE_COLOR };
       results.push(scrapedJob);
       onJob(scrapedJob);
@@ -55,8 +71,8 @@ export async function scrapeInstaHyre(
     onLog("error", `InstaHyre error: ${err.message}`);
     logger.error({ err }, "InstaHyre scraper failed");
   } finally {
-    await page.close();
-    await ctx.close();
+    await page.close().catch(() => {});
+    await ctx.close().catch(() => {}); // safe — ephemeral context, not the shared browser
   }
   return results;
 }

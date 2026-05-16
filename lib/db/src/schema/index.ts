@@ -7,6 +7,7 @@ export * from "./applications";
 export * from "./profiles";
 export * from "./ai-analyses";
 export * from "./portals";
+export * from "./discovery-logs";
 
 // Export all table objects for use in drizzle
 export const schema = {
@@ -15,6 +16,7 @@ export const schema = {
   profilesTable,
   aiAnalysesTable,
   portalsTable,
+  discoveryLogsTable,
 };
 
 // Import all tables to ensure exports are set up correctly
@@ -23,3 +25,4 @@ import { applicationsTable } from "./applications";
 import { profilesTable } from "./profiles";
 import { aiAnalysesTable } from "./ai-analyses";
 import { portalsTable } from "./portals";
+import { discoveryLogsTable } from "./discovery-logs";

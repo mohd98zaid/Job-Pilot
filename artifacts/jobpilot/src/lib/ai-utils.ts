@@ -4,6 +4,7 @@
  * - Real job searching via Playwright scrapers (SSE streaming)
  * - Job scoring using configured AI backends
  * - Match analysis, Deduplication, Field mapping
+ * - Persistent job storage (GET / PATCH)
  */
 
 const API_BASE = "http://localhost:3005";
@@ -107,6 +108,37 @@ export async function deleteJob(id: number): Promise<boolean> {
 export async function clearAllJobs(): Promise<boolean> {
   try {
     const res = await fetch(`${API_BASE}/api/jobs`, { method: "DELETE" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Loads all persisted jobs from the database.
+ * Called on app startup so jobs survive refresh / server restart.
+ */
+export async function getAllJobs(): Promise<Job[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/jobs`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Persists a status change for a job to the database.
+ * Called whenever the user drags a job card to a new status column.
+ */
+export async function updateJobStatus(id: number, status: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/jobs/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
     return res.ok;
   } catch {
     return false;

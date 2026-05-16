@@ -88,7 +88,7 @@ function Stop-System {
                 }
             }
             catch {
-                Write-Host "Failed to stop $name: $_" -ForegroundColor Red
+                Write-Host "Failed to stop $($name): $_" -ForegroundColor Red
             }
         }
     }

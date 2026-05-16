@@ -10,6 +10,8 @@ import {
   saveProfile, 
   deleteJob, 
   clearAllJobs,
+  getAllJobs,
+  updateJobStatus,
   type CustomPortal, 
   type Job 
 } from "../lib/ai-utils";
@@ -86,7 +88,7 @@ export default function JobPilot() {
   const [siteFilter, setSiteFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("Last 7 days");
   const [filterStatus, setFilterStatus] = useState("All");
-  const [activeBoards, setActiveBoards] = useState(["LinkedIn", "Wellfound", "Indeed", "Naukri", "Greenhouse"]);
+  const [activeBoards, setActiveBoards] = useState(["LinkedIn", "RemoteOK", "Arbeitnow", "AI Discovery"]);
   const [selectedAI, setSelectedAI] = useState("Ollama (Local)");
   const [aiBackends, setAiBackends] = useState([
     { name: "Claude (Anthropic)", model: "claude-sonnet-4-20250514", url: "https://api.anthropic.com/v1", apiKey: "" },
@@ -138,11 +140,11 @@ export default function JobPilot() {
   };
 
   useEffect(() => {
-    // Load profile from backend
-    const loadProfile = async () => {
+    // Load profile AND persisted jobs from backend on startup
+    const loadInitialData = async () => {
+      // 1. Load profile
       const data = await getProfile();
       if (data) {
-        // Map backend fields to frontend state casing
         setProfile({
           Name: data.name || "User",
           "Current Role": data.currentRole || "Software Engineer",
@@ -152,8 +154,16 @@ export default function JobPilot() {
         if (data.skills) setSkills(data.skills);
         if (data.aiBackends && data.aiBackends.length > 0) setAiBackends(data.aiBackends);
       }
+
+      // 2. Load previously saved jobs (persists across refresh/restart)
+      const saved = await getAllJobs();
+      if (saved.length > 0) {
+        setJobs(saved);
+        setTrackerJobs(saved);
+        addLog("success", "DB", `Loaded ${saved.length} saved job${saved.length !== 1 ? "s" : ""} from database`);
+      }
     };
-    loadProfile();
+    loadInitialData();
   }, []);
 
   const runSearch = async () => {
@@ -162,7 +172,7 @@ export default function JobPilot() {
       return;
     }
     setSearching(true);
-    setJobs([]);
+    // Do NOT wipe existing jobs — new results will be merged in
     setSelectedJob(null);
     addLog("info", "SEARCH", `Starting discovery for "${role}" in ${region}...`);
     if (companyFilter) addLog("info", "FILTER", `Company filter: ${companyFilter}`);
@@ -202,7 +212,12 @@ export default function JobPilot() {
         addLog("ai", "RANK-AI", `Scoring ${dedupedResults.length} results against profile...`);
         const scoredResults = await scoreJobsWithAI(dedupedResults, searchProfile, selectedAI, aiBackends, addLog);
         
-        setJobs(scoredResults);
+        // Merge: keep existing (DB-loaded) jobs, add new scored results (dedupe by id)
+        setJobs(prev => {
+          const existingIds = new Set(prev.map(j => j.id));
+          const fresh = scoredResults.filter((j: Job) => !existingIds.has(j.id));
+          return [...scoredResults, ...prev.filter(j => !scoredResults.find((s: Job) => s.id === j.id))];
+        });
 
         const count = scoredResults.length;
         const strongCount = scoredResults.filter((j: Job) => (j.score || 0) >= 90).length;
@@ -224,6 +239,8 @@ export default function JobPilot() {
     setJobs(j => j.map(job => job.id === id ? { ...job, status } : job));
     setTrackerJobs(j => j.map(job => job.id === id ? { ...job, status } : job));
     if (selectedJob?.id === id) setSelectedJob(s => s ? { ...s, status } : s);
+    // Persist to DB so status survives page refresh
+    updateJobStatus(id, status).catch(() => {});
     addLog("success", "TRACK", `Job #${id} moved to "${status}"`);
   };
 
@@ -487,7 +504,15 @@ export default function JobPilot() {
           <div style={{ animation: "slideIn 0.3s ease" }}>
             <div style={{ marginBottom: 28 }}>
               <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 6px", letterSpacing: "-0.03em" }}>Job Discovery <span style={{ color: "#38bdf8" }}>Agent</span></h2>
-              <p style={{ color: "#64748b", fontSize: 14, margin: 0 }}>Configure your hunt. The agent scrapes {activeBoards.length} board{activeBoards.length !== 1 ? "s" : ""}, deduplicates, and ranks against your profile.</p>
+              <p style={{ color: "#64748b", fontSize: 14, margin: "0 0 10px" }}>Hybrid pipeline: <b>API feeds</b> (instant, reliable) + <b>Browser</b> (deep scrape) + <b>AI Discovery</b> (web search + extraction). All links validated before saving.</p>
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap" as const }}>
+                {[["#10b981", "API", "Direct feed — fast & reliable"], ["#f59e0b", "Browser", "Playwright scraper — may hit blocks"], ["#818cf8", "AI", "AI web search — always finds jobs"]].map(([color, label, desc]) => (
+                  <div key={label as string} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#64748b" }}>
+                    <span style={{ background: `${color as string}22`, color: color as string, borderRadius: 8, padding: "1px 7px", fontWeight: 700, fontSize: 10 }}>{label}</span>
+                    <span>{desc}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
@@ -525,15 +550,28 @@ export default function JobPilot() {
             </div>
 
             <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap" as const }}>
-              {["LinkedIn", "Wellfound", "Indeed", "Naukri", "Greenhouse"].map(b => {
-                const active = activeBoards.includes(b);
+              {[
+                { id: "LinkedIn",     label: "LinkedIn",     badge: "API",     color: "#0A66C2" },
+                { id: "RemoteOK",     label: "RemoteOK",     badge: "API",     color: "#00b16a" },
+                { id: "Arbeitnow",    label: "Arbeitnow",    badge: "API",     color: "#6d28d9" },
+                { id: "JSearch",      label: "JSearch",      badge: "API",     color: "#f59e0b" },
+                { id: "Indeed",       label: "Indeed",       badge: "Browser", color: "#003a9b" },
+                { id: "Naukri",       label: "Naukri",       badge: "Browser", color: "#ff7555" },
+                { id: "Hirect",       label: "Hirect",       badge: "Browser", color: "#6c47ff" },
+                { id: "InstaHyre",    label: "InstaHyre",    badge: "Browser", color: "#00b386" },
+                { id: "AI Discovery", label: "AI Discovery", badge: "AI",      color: "#818cf8" },
+              ].map(b => {
+                const active = activeBoards.includes(b.id);
+                const badgeColor = b.badge === "API" ? "#10b981" : b.badge === "AI" ? "#818cf8" : "#f59e0b";
                 return (
                   <div
-                    key={b}
-                    onClick={() => toggleBoard(b)}
-                    style={{ padding: "6px 14px", borderRadius: 20, background: active ? "rgba(56,189,248,0.1)" : "#0f172a", border: `1px solid ${active ? "#0369a1" : "#1e293b"}`, fontSize: 12, color: active ? "#38bdf8" : "#475569", cursor: "pointer", transition: "all 0.2s", userSelect: "none" as const }}
+                    key={b.id}
+                    onClick={() => toggleBoard(b.id)}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 20, background: active ? `${b.color}18` : "#0f172a", border: `1px solid ${active ? b.color : "#1e293b"}`, fontSize: 12, color: active ? b.color : "#475569", cursor: "pointer", transition: "all 0.2s", userSelect: "none" as const }}
                   >
-                    {active ? "✓" : "○"} {b}
+                    <span>{active ? "✓" : "○"}</span>
+                    <span>{b.label}</span>
+                    <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 8, background: `${badgeColor}22`, color: badgeColor, fontWeight: 700, letterSpacing: "0.04em" }}>{b.badge}</span>
                   </div>
                 );
               })}
@@ -563,7 +601,12 @@ export default function JobPilot() {
             <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20, flexWrap: "wrap" as const }}>
               <div>
                 <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 4px", letterSpacing: "-0.03em" }}>Ranked <span style={{ color: "#38bdf8" }}>Results</span></h2>
-                <p style={{ color: "#64748b", fontSize: 13, margin: 0 }}>{jobs.length} job{jobs.length !== 1 ? "s" : ""} · sorted by AI relevance score</p>
+                <p style={{ color: "#64748b", fontSize: 13, margin: 0 }}>
+                  {jobs.length} job{jobs.length !== 1 ? "s" : ""} · sorted by AI relevance score
+                  <span style={{ marginLeft: 10, padding: "1px 8px", borderRadius: 10, background: "rgba(16,185,129,0.12)", color: "#34d399", fontSize: 11, fontWeight: 600 }}>
+                    💾 Saved — survives refresh
+                  </span>
+                </p>
               </div>
               <div style={{ flex: 1 }} />
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
