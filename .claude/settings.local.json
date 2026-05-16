@@ -1,0 +1,44 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm run *)",
+      "Bash(run.bat start *)",
+      "Bash(pnpm install *)",
+      "Bash(./run.ps1 start *)",
+      "Bash(start cmd *)",
+      "Bash(pnpm add *)",
+      "Bash(drizzle-kit --help)",
+      "Bash(node dist/index.js)",
+      "Bash(node dist/index.mjs)",
+      "Bash(Get-ChildItem *)",
+      "Bash(DATABASE_URL=\"postgresql://localhost:5432/jobpilot\" npx tsx src/index.ts)",
+      "Bash(pkill *)",
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(node *)",
+      "Bash(pnpm -r list --depth 0)",
+      "Bash(pnpm list *)",
+      "Bash(curl *)",
+      "Bash(tasklist /fi \"pid eq 3001\")",
+      "Bash(findstr 3001)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :3001)",
+      "Bash(taskkill /PID 6700 /F)",
+      "Bash(powershell \"Stop-Process -processname YourProcessName\")",
+      "Bash(powershell \"Get-Process -Id 6700 | Stop-Process -Force\")",
+      "Bash(ollama --version)",
+      "Bash(ollama serve *)",
+      "Bash(timeout 10s)",
+      "Bash(ollama pull *)",
+      "Bash(psql -h localhost -p 5432 -U postgres jobpilot -c \"SELECT version\\(\\);\")",
+      "Bash(docker run *)",
+      "Bash(docker --version)",
+      "Bash(Get-Process -Name \"Docker Desktop\" -ErrorAction SilentlyContinue)",
+      "Bash(sqlite3 --version)",
+      "Bash(npx tsx *)",
+      "Bash(sqlite3 jobpilot.db \"INSERT OR IGNORE INTO profiles \\(user_id, name, current_role, target_market, years_of_experience, skills, cv_text, created_at, updated_at\\) VALUES \\('default-user', 'Default User', 'Software Developer', 'Tech', '5+', '[\"JavaScript\", \"Python\", \"React\"]', 'Experienced developer with 5+ years of experience in web development.', datetime\\('now'\\), datetime\\('now'\\)\\);\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Xaid\\Desktop\\My_project\\Job-Pilot"
+    ]
+  }
+}

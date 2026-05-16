@@ -82,14 +82,21 @@ export default function JobPilot() {
   const [logs, setLogs] = useState<LogEntry[]>([
     { time: new Date().toTimeString().slice(0, 8), type: "info", prefix: "SYSTEM", msg: "JobPilot v2.0 ready. AI backend: Ollama (gpt-oss:120b-cloud)." },
   ]);
-  const [role, setRole] = useState("");
-  const [region, setRegion] = useState("");
-  const [companyFilter, setCompanyFilter] = useState("");
-  const [siteFilter, setSiteFilter] = useState("");
-  const [dateFilter, setDateFilter] = useState("Last 7 days");
+  const [role, setRole] = useState(() => localStorage.getItem("jobpilot_role") || "");
+  const [region, setRegion] = useState(() => localStorage.getItem("jobpilot_region") || "");
+  const [companyFilter, setCompanyFilter] = useState(() => localStorage.getItem("jobpilot_companyFilter") || "");
+  const [siteFilter, setSiteFilter] = useState(() => localStorage.getItem("jobpilot_siteFilter") || "");
+  const [dateFilter, setDateFilter] = useState(() => localStorage.getItem("jobpilot_dateFilter") || "Last 7 days");
   const [filterStatus, setFilterStatus] = useState("All");
-  const [activeBoards, setActiveBoards] = useState(["LinkedIn", "RemoteOK", "Arbeitnow", "AI Discovery"]);
-  const [selectedAI, setSelectedAI] = useState("Ollama (Local)");
+  const [activeBoards, setActiveBoards] = useState<string[]>(() => {
+    const saved = localStorage.getItem("jobpilot_activeBoards");
+    try {
+      return saved ? JSON.parse(saved) : ["LinkedIn", "RemoteOK", "Arbeitnow", "AI Discovery"];
+    } catch {
+      return ["LinkedIn", "RemoteOK", "Arbeitnow", "AI Discovery"];
+    }
+  });
+  const [selectedAI, setSelectedAI] = useState(() => localStorage.getItem("jobpilot_selectedAI") || "Ollama (Local)");
   const [aiBackends, setAiBackends] = useState([
     { name: "Claude (Anthropic)", model: "claude-sonnet-4-20250514", url: "https://api.anthropic.com/v1", apiKey: "" },
     { name: "OpenAI",             model: "gpt-4o",                   url: "https://api.openai.com/v1",  apiKey: "" },
@@ -100,16 +107,39 @@ export default function JobPilot() {
   const [autofillRunning, setAutofillRunning] = useState(false);
   const [autofillDone, setAutofillDone] = useState(false);
   const [selectedAutofillJob, setSelectedAutofillJob] = useState<Job | null>(null);
-  const [automationModes, setAutomationModes] = useState({
-    "Review Before Submit": true,
-    "Full Auto": false,
-    "Stealth Mode": true,
+  const [automationModes, setAutomationModes] = useState(() => {
+    const saved = localStorage.getItem("jobpilot_automationModes");
+    try {
+      return saved ? JSON.parse(saved) : {
+        "Review Before Submit": true,
+        "Full Auto": false,
+        "Stealth Mode": true,
+      };
+    } catch {
+      return {
+        "Review Before Submit": true,
+        "Full Auto": false,
+        "Stealth Mode": true,
+      };
+    }
   });
-  const [automation, setAutomation] = useState({
-    "Playwright Headless": true,
-    "Human-like Delays": true,
-    "Auto-track on Apply": true,
-    "Email Notifications": false,
+  const [automation, setAutomation] = useState(() => {
+    const saved = localStorage.getItem("jobpilot_automation");
+    try {
+      return saved ? JSON.parse(saved) : {
+        "Playwright Headless": true,
+        "Human-like Delays": true,
+        "Auto-track on Apply": true,
+        "Email Notifications": false,
+      };
+    } catch {
+      return {
+        "Playwright Headless": true,
+        "Human-like Delays": true,
+        "Auto-track on Apply": true,
+        "Email Notifications": false,
+      };
+    }
   });
   const [profile, setProfile] = useState({
     Name: "",
@@ -132,6 +162,17 @@ export default function JobPilot() {
     const time = now.toTimeString().slice(0, 8);
     setLogs(l => [...l, { time, type, prefix, msg }]);
   };
+
+  // Persistence Watchers
+  useEffect(() => { localStorage.setItem("jobpilot_role", role); }, [role]);
+  useEffect(() => { localStorage.setItem("jobpilot_region", region); }, [region]);
+  useEffect(() => { localStorage.setItem("jobpilot_companyFilter", companyFilter); }, [companyFilter]);
+  useEffect(() => { localStorage.setItem("jobpilot_siteFilter", siteFilter); }, [siteFilter]);
+  useEffect(() => { localStorage.setItem("jobpilot_dateFilter", dateFilter); }, [dateFilter]);
+  useEffect(() => { localStorage.setItem("jobpilot_activeBoards", JSON.stringify(activeBoards)); }, [activeBoards]);
+  useEffect(() => { localStorage.setItem("jobpilot_selectedAI", selectedAI); }, [selectedAI]);
+  useEffect(() => { localStorage.setItem("jobpilot_automationModes", JSON.stringify(automationModes)); }, [automationModes]);
+  useEffect(() => { localStorage.setItem("jobpilot_automation", JSON.stringify(automation)); }, [automation]);
 
   const toggleBoard = (board: string) => {
     setActiveBoards(prev =>
@@ -310,7 +351,9 @@ export default function JobPilot() {
           {selectedAI === "Claude (Anthropic)" ? "Claude Sonnet 4" : selectedAI} · Active
         </div>
         <div style={{ width: 1, height: 20, background: "#1e293b" }} />
-        <div style={{ fontSize: 12, color: "#64748b" }}>{profile.Name} · TCS → GCC</div>
+        <div style={{ fontSize: 12, color: "#64748b" }}>
+          {profile.Name} {profile["Current Role"] ? `· ${profile["Current Role"]}` : ""} {profile["Target Market"] ? `→ ${profile["Target Market"]}` : ""}
+        </div>
       </div>
 
       {/* Nav */}
