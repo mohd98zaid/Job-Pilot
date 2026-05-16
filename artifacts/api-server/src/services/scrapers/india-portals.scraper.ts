@@ -9,7 +9,8 @@ import { logger } from "../../lib/logger.js";
 const SOURCE_PREFIX = "India";
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0";
 const TIMEOUT = 15000;
-const MAX_PAGES = 5;
+const SAFETY_CAP = 50;        // Never exceed 50 pages per portal (prevents infinite loops)
+const PAGE_DELAY_MS = 500;    // Polite delay between pages
 
 async function safeFetch(url: string, init?: RequestInit): Promise<Response | null> {
   const ctrl = new AbortController();
@@ -25,24 +26,30 @@ function delay(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 // ── Naukri.com ───────────────────────────────────────────────────────────────
 async function scrapeNaukriPortal(role: string, region: string, onLog: LogEmitter): Promise<Partial<ScrapedJob & { source: string }>[]> {
   const results: any[] = [];
+  const seen = new Set<string>();
   const regionSlug = region.toLowerCase().replace(/[\s/,]+/g, "-").replace(/[^a-z0-9-]/g, "");
   const roleSlug = role.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  let totalAvailable = Infinity;
 
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const url = `https://www.naukri.com/jobapi/v3/search?noOfResults=20&urlType=search_by_keyword&searchType=adv&keyword=${encodeURIComponent(role)}&location=${encodeURIComponent(region)}&pageNo=${page}&sort=1&functionAreaIdGid=&industryIdGid=&educationIdGid=&seoKey=${roleSlug}-jobs-in-${regionSlug}`;
+  for (let page = 1; page <= SAFETY_CAP; page++) {
+    const url = `https://www.naukri.com/jobapi/v3/search?noOfResults=20&urlType=search_by_keyword&searchType=adv&keyword=${encodeURIComponent(role)}&location=${encodeURIComponent(region)}&pageNo=${page}&sort=1&seoKey=${roleSlug}-jobs-in-${regionSlug}`;
     const res = await safeFetch(url, {
-      headers: {
-        "User-Agent": UA, "Accept": "application/json",
-        "systemid": "Naukri", "appid": "109",
-        "Referer": "https://www.naukri.com/",
-      }
+      headers: { "User-Agent": UA, "Accept": "application/json", "systemid": "Naukri", "appid": "109", "Referer": "https://www.naukri.com/" }
     });
     if (!res?.ok) break;
     let data: any; try { data = await res.json(); } catch { break; }
     const jobs: any[] = data?.jobDetails || [];
     if (!jobs.length) break;
 
+    // Read total from first page
+    if (page === 1) totalAvailable = data?.noOfJobs || data?.totalCount || Infinity;
+    const fetched = (page - 1) * 20 + jobs.length;
+
+    let newOnPage = 0;
     for (const j of jobs) {
+      if (seen.has(j.jobId)) continue;
+      seen.add(j.jobId);
+      newOnPage++;
       results.push({
         title: j.title,
         company: j.companyName,
@@ -55,7 +62,8 @@ async function scrapeNaukriPortal(role: string, region: string, onLog: LogEmitte
         source: "Naukri",
       });
     }
-    await delay(500);
+    if (newOnPage === 0 || fetched >= totalAvailable) break;
+    await delay(PAGE_DELAY_MS);
   }
   return results;
 }
@@ -63,45 +71,43 @@ async function scrapeNaukriPortal(role: string, region: string, onLog: LogEmitte
 // ── TimesJobs ────────────────────────────────────────────────────────────────
 async function scrapeTimesJobs(role: string, region: string, onLog: LogEmitter): Promise<any[]> {
   const results: any[] = [];
+  const seen = new Set<string>();
+  let page = 1;
 
-  for (let page = 1; page <= MAX_PAGES; page++) {
+  while (page <= SAFETY_CAP) {
     const url = `https://www.timesjobs.com/candidate/jobsearchresult.html?searchType=personalizedSearch&from=submit&txtKeywords=${encodeURIComponent(role)}&txtLocation=${encodeURIComponent(region)}&pDate=I&sequence=${page}&startPage=${page}`;
     const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "text/html" } });
     if (!res?.ok) break;
     const html = await res.text();
 
-    // TimesJobs embeds JSON in script tag
     const jsonMatch = html.match(/window\.__INITIAL_STATE__\s*=\s*({[\s\S]*?});\s*<\/script>/);
     if (jsonMatch) {
       try {
         const state = JSON.parse(jsonMatch[1]);
         const jobs: any[] = state?.jobSearch?.jobDetails || state?.jobs || [];
         if (!jobs.length) break;
+        let newOnPage = 0;
         for (const j of jobs) {
-          results.push({
-            title: j.jobTitle || j.title,
-            company: j.companyName || j.company,
-            location: j.locationList?.join(", ") || j.location || region,
-            salary: j.packageLakh || "Not disclosed",
-            url: j.jdURL || `https://www.timesjobs.com/job-detail/${j.jobId}`,
-            externalId: `tj-${j.jobId}`,
-            source: "TimesJobs",
-          });
+          const id = String(j.jobId || j.id || j.jobTitle);
+          if (seen.has(id)) continue;
+          seen.add(id); newOnPage++;
+          results.push({ title: j.jobTitle || j.title, company: j.companyName || j.company, location: j.locationList?.join(", ") || j.location || region, salary: j.packageLakh || "Not disclosed", url: j.jdURL || `https://www.timesjobs.com/job-detail/${j.jobId}`, externalId: `tj-${id}`, source: "TimesJobs" });
         }
-        await delay(600); continue;
-      } catch { /* fall through to regex */ }
+        if (newOnPage === 0) break;
+        await delay(PAGE_DELAY_MS); page++; continue;
+      } catch { break; }
     }
 
-    // Regex fallback on HTML
     const jobRe = /data-job-id="(\d+)"[\s\S]*?class="[^"]*jobTit[^"]*"[^>]*><[^>]*>([^<]+)<[\s\S]*?class="[^"]*companyInfo[^"]*"[^>]*>([^<]+)</gi;
-    let m: RegExpExecArray | null;
-    let found = 0;
+    let m: RegExpExecArray | null; let found = 0;
     while ((m = jobRe.exec(html))) {
+      if (seen.has(m[1])) continue;
+      seen.add(m[1]); found++;
       results.push({ title: m[2].trim(), company: m[3].trim(), location: region, url: `https://www.timesjobs.com/job-detail/${m[1]}`, externalId: `tj-${m[1]}`, source: "TimesJobs" });
-      found++;
     }
     if (!found) break;
-    await delay(600);
+    await delay(PAGE_DELAY_MS);
+    page++;
   }
   return results;
 }
@@ -109,8 +115,9 @@ async function scrapeTimesJobs(role: string, region: string, onLog: LogEmitter):
 // ── Shine.com ────────────────────────────────────────────────────────────────
 async function scrapeShine(role: string, region: string): Promise<any[]> {
   const results: any[] = [];
+  const seen = new Set<string>();
 
-  for (let page = 1; page <= MAX_PAGES; page++) {
+  for (let page = 1; page <= SAFETY_CAP; page++) {
     const url = `https://www.shine.com/api/v3/search/?q=${encodeURIComponent(role)}&l=${encodeURIComponent(region)}&page=${page}&limit=20&sort=-published_date`;
     const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "application/json", "Referer": "https://www.shine.com/" } });
     if (!res?.ok) break;
@@ -118,19 +125,15 @@ async function scrapeShine(role: string, region: string): Promise<any[]> {
     const jobs: any[] = data?.result_list || data?.results || [];
     if (!jobs.length) break;
 
+    let newOnPage = 0;
     for (const j of jobs) {
-      results.push({
-        title: j.designation || j.title,
-        company: j.company_name || j.employer,
-        location: j.location_list?.join(", ") || j.location || region,
-        salary: j.salary_text || "Not disclosed",
-        url: j.job_url || `https://www.shine.com/job-search/${j.job_id}/`,
-        externalId: `shine-${j.job_id}`,
-        description: j.description?.substring(0, 400),
-        source: "Shine",
-      });
+      const id = String(j.job_id || j.id);
+      if (seen.has(id)) continue;
+      seen.add(id); newOnPage++;
+      results.push({ title: j.designation || j.title, company: j.company_name || j.employer, location: j.location_list?.join(", ") || j.location || region, salary: j.salary_text || "Not disclosed", url: j.job_url || `https://www.shine.com/job-search/${id}/`, externalId: `shine-${id}`, description: j.description?.substring(0, 400), source: "Shine" });
     }
-    await delay(500);
+    if (newOnPage === 0) break;
+    await delay(PAGE_DELAY_MS);
   }
   return results;
 }
@@ -138,35 +141,30 @@ async function scrapeShine(role: string, region: string): Promise<any[]> {
 // ── Foundit (Monster India) ──────────────────────────────────────────────────
 async function scrapeFoundit(role: string, region: string): Promise<any[]> {
   const results: any[] = [];
+  const seen = new Set<string>();
 
-  for (let page = 1; page <= MAX_PAGES; page++) {
+  for (let page = 1; page <= SAFETY_CAP; page++) {
     const url = `https://www.foundit.in/srp/results?query=${encodeURIComponent(role)}&location=${encodeURIComponent(region)}&experienceRanges=0~50&sort=1&start=${(page - 1) * 15}`;
     const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "text/html", "Referer": "https://www.foundit.in/" } });
     if (!res?.ok) break;
     const html = await res.text();
 
     const jsonMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>({[\s\S]*?})<\/script>/);
-    if (jsonMatch) {
-      try {
-        const d = JSON.parse(jsonMatch[1]);
-        const jobs: any[] = d?.props?.pageProps?.searchResult?.jobList || [];
-        if (!jobs.length) break;
-        for (const j of jobs) {
-          results.push({
-            title: j.title,
-            company: j.company?.name || "Unknown",
-            location: j.locations?.join(", ") || region,
-            salary: j.salary || "Not disclosed",
-            url: `https://www.foundit.in/job/${j.id}`,
-            externalId: `foundit-${j.id}`,
-            description: j.snippets?.join(" ").substring(0, 400),
-            source: "Foundit",
-          });
-        }
-        await delay(600); continue;
-      } catch { break; }
-    }
-    break;
+    if (!jsonMatch) break;
+    try {
+      const d = JSON.parse(jsonMatch[1]);
+      const jobs: any[] = d?.props?.pageProps?.searchResult?.jobList || [];
+      if (!jobs.length) break;
+      let newOnPage = 0;
+      for (const j of jobs) {
+        const id = String(j.id || j.jobId);
+        if (seen.has(id)) continue;
+        seen.add(id); newOnPage++;
+        results.push({ title: j.title, company: j.company?.name || "Unknown", location: j.locations?.join(", ") || region, salary: j.salary || "Not disclosed", url: `https://www.foundit.in/job/${id}`, externalId: `foundit-${id}`, description: j.snippets?.join(" ").substring(0, 400), source: "Foundit" });
+      }
+      if (newOnPage === 0) break;
+    } catch { break; }
+    await delay(PAGE_DELAY_MS);
   }
   return results;
 }
@@ -196,25 +194,24 @@ async function scrapeHirist(role: string, region: string): Promise<any[]> {
 // ── iimjobs.com (Management/Executive) ──────────────────────────────────────
 async function scrapeIimjobs(role: string, region: string): Promise<any[]> {
   const results: any[] = [];
-  for (let page = 1; page <= 3; page++) {
+  const seen = new Set<string>();
+
+  for (let page = 1; page <= SAFETY_CAP; page++) {
     const url = `https://api.iimjobs.com/v1/jobs/search?q=${encodeURIComponent(role)}&location=${encodeURIComponent(region)}&page=${page}`;
     const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "application/json", "Referer": "https://www.iimjobs.com/" } });
     if (!res?.ok) break;
     let data: any; try { data = await res.json(); } catch { break; }
     const jobs = data?.jobs || data?.data || [];
     if (!jobs.length) break;
+    let newOnPage = 0;
     for (const j of jobs) {
-      results.push({
-        title: j.title || j.jobTitle,
-        company: j.company || j.companyName || "Unknown",
-        location: j.location || region,
-        salary: j.salary || "Not disclosed",
-        url: j.url || `https://www.iimjobs.com/j/${j.id}`,
-        externalId: `iimjobs-${j.id}`,
-        source: "iimjobs",
-      });
+      const id = String(j.id || j.jobId);
+      if (seen.has(id)) continue;
+      seen.add(id); newOnPage++;
+      results.push({ title: j.title || j.jobTitle, company: j.company || j.companyName || "Unknown", location: j.location || region, salary: j.salary || "Not disclosed", url: j.url || `https://www.iimjobs.com/j/${id}`, externalId: `iimjobs-${id}`, source: "iimjobs" });
     }
-    await delay(500);
+    if (newOnPage === 0) break;
+    await delay(PAGE_DELAY_MS);
   }
   return results;
 }
