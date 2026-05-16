@@ -35,9 +35,30 @@ export function isJobRelevant(
       );
 
       if (!isMatch) {
-        // Hard-reject only if location explicitly names a DIFFERENT major region
-        const OTHER_REGIONS = ["india", "bangalore", "mumbai", "delhi", "london",
-          "new york", "san francisco", "singapore", "sydney", "toronto"];
+        // Hard-reject only if location explicitly names a DIFFERENT major region.
+        // This list covers all countries/cities that are NOT part of the UAE/Gulf cluster.
+        const OTHER_REGIONS = [
+          // South Asia
+          "india", "bangalore", "bengaluru", "mumbai", "delhi", "hyderabad", "pune",
+          "chennai", "kolkata", "noida", "gurgaon", "pakistan", "karachi", "lahore",
+          "islamabad", "bangladesh", "dhaka", "sri lanka", "colombo", "nepal", "kathmandu",
+          // Southeast Asia
+          "singapore", "malaysia", "kuala lumpur", "indonesia", "jakarta",
+          "philippines", "manila", "vietnam", "hanoi", "thailand", "bangkok",
+          // East Asia
+          "china", "beijing", "shanghai", "hong kong", "japan", "tokyo", "south korea", "seoul",
+          // Europe
+          "london", "united kingdom", "uk", "germany", "berlin", "france", "paris",
+          "netherlands", "amsterdam", "spain", "madrid", "italy", "rome", "sweden", "stockholm",
+          "norway", "oslo", "denmark", "copenhagen", "poland", "warsaw",
+          // Americas
+          "new york", "san francisco", "los angeles", "chicago", "toronto", "canada",
+          "brazil", "são paulo", "mexico", "mexico city",
+          // Oceania
+          "sydney", "melbourne", "australia", "new zealand", "auckland",
+          // Africa (non-Gulf MENA)
+          "egypt", "cairo", "south africa", "johannesburg", "nigeria", "lagos",
+        ];
         const isDifferentRegion = OTHER_REGIONS.some((r) =>
           rawLocation.includes(r) && !regionTerms.includes(r)
         );

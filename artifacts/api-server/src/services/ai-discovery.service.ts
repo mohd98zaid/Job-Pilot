@@ -158,9 +158,39 @@ const engineHealth = {
 };
 
 /**
+ * Persistent Bing session — reuse the same browser context & page across all
+ * queries so Bing cookies/session survive between searches (no per-query CAPTCHA).
+ */
+let bingSessionCtx: Awaited<ReturnType<typeof newStealthContext>> | null = null;
+let bingSessionPage: import("playwright").Page | null = null;
+
+async function getBingPage(headless: boolean): Promise<import("playwright").Page> {
+  // Reuse existing page if healthy
+  if (bingSessionPage && !bingSessionPage.isClosed()) return bingSessionPage;
+
+  // Clean up stale session
+  if (bingSessionPage && bingSessionPage.isClosed()) {
+    await bingSessionCtx?.close().catch(() => {});
+    bingSessionCtx = null;
+    bingSessionPage = null;
+  }
+
+  const browser = await getBrowser(headless);
+  bingSessionCtx = await newStealthContext(browser);
+  bingSessionPage = await bingSessionCtx.newPage();
+  return bingSessionPage;
+}
+
+async function closeBingSession() {
+  if (bingSessionPage && !bingSessionPage.isClosed()) await bingSessionPage.close().catch(() => {});
+  if (bingSessionCtx) await bingSessionCtx.close().catch(() => {});
+  bingSessionCtx = null;
+  bingSessionPage = null;
+}
+
+/**
  * Execute a single search attempt for one engine.
- * Returns the results or throws. Owns the full lifecycle of its ctx+page
- * so there is no double-decrement when the outer loop retries.
+ * Bing reuses a persistent session to avoid per-query CAPTCHA storms.
  */
 async function attemptEngineSearch(
   engine: { name: string; url: (q: string) => string },
@@ -170,6 +200,17 @@ async function attemptEngineSearch(
   // Wait if another engine is mid headful-switch so we don't race
   await headfulSwitchPromise;
 
+  // ── Bing: use persistent session ──────────────────────────────────────────
+  if (engine.name === "Bing") {
+    const page = await getBingPage(!headfulModeActive);
+    await page.goto(engine.url(query), { waitUntil: "domcontentloaded", timeout: 25000 });
+    const isCaptcha = await detectCaptcha(page);
+    if (isCaptcha) return { results: [], captchaDetected: true };
+    const scraped = await scrapeBing(page);
+    return { results: scraped, captchaDetected: false };
+  }
+
+  // ── Other engines: ephemeral context per query ────────────────────────────
   incrementActiveTasks();
   let ctx: Awaited<ReturnType<typeof newStealthContext>> | null = null;
   let page: import("playwright").Page | null = null;
@@ -186,14 +227,9 @@ async function attemptEngineSearch(
       return { results: [], captchaDetected: true };
     }
 
-    const scraped = engine.name === "Google" ? await scrapeGoogle(page)
-                  : engine.name === "Bing"   ? await scrapeBing(page)
-                  : await scrapeDDG(page);
-
+    const scraped = engine.name === "Google" ? await scrapeGoogle(page) : await scrapeDDG(page);
     return { results: scraped, captchaDetected: false };
   } finally {
-    // Always clean up — page first, then context, then counter.
-    // This runs exactly once per call (no continue/break interference).
     if (page && !page.isClosed()) await page.close().catch(() => {});
     if (ctx) await ctx.close().catch(() => {});
     decrementActiveTasks();
@@ -238,6 +274,39 @@ async function searchWeb(
 
           // ── Headful CAPTCHA resolution ──────────────────────────────
           activateHeadfulMode();
+
+          // For Bing: switch the persistent session page to headful and reuse it.
+          // This way the solved cookies remain for all future queries.
+          if (engine.name === "Bing") {
+            try {
+              await closeBingSession(); // close headless session
+              const headfulPage = await getBingPage(false); // open headful session
+              await headfulPage.goto(engine.url(query), { waitUntil: "domcontentloaded" });
+              await headfulPage.bringToFront();
+
+              log("info", `Please solve the CAPTCHA in the visible window for Bing. Waiting 20 s...`);
+              await humanDelay(15_000, 20_000);
+
+              if (await detectCaptcha(headfulPage)) {
+                log("error", `Bing CAPTCHA still present after timeout.`);
+                health.fails++;
+                health.lastFail = Date.now();
+                resolveHeadfulSwitch();
+                break;
+              }
+
+              const hitlResults = await scrapeBing(headfulPage);
+              health.fails = 0;
+              log("success", `Bing (HITL) returned ${hitlResults.length} results`);
+              results.push(...hitlResults);
+              succeeded = true;
+            } finally {
+              resolveHeadfulSwitch();
+            }
+            break;
+          }
+
+          // Other engines: ephemeral headful context
           incrementActiveTasks();
           let headfulCtx: Awaited<ReturnType<typeof newStealthContext>> | null = null;
           let headfulPage: import("playwright").Page | null = null;
@@ -250,18 +319,17 @@ async function searchWeb(
             await headfulPage.goto(engine.url(query), { waitUntil: "domcontentloaded" });
             await headfulPage.bringToFront();
 
-            log("info", `Please solve the CAPTCHA in the visible window for ${engine.name}. Waiting 60 s...`);
-            await humanDelay(45_000, 60_000);
+            log("info", `Please solve the CAPTCHA in the visible window for ${engine.name}. Waiting 20 s...`);
+            await humanDelay(15_000, 20_000);
 
             if (await detectCaptcha(headfulPage)) {
               log("error", `${engine.name} CAPTCHA still present after timeout.`);
               health.fails++;
               health.lastFail = Date.now();
-              break; // give up on this engine
+              break;
             }
 
             const hitlResults = engine.name === "Google" ? await scrapeGoogle(headfulPage)
-                               : engine.name === "Bing"   ? await scrapeBing(headfulPage)
                                : await scrapeDDG(headfulPage);
 
             health.fails = 0;
@@ -272,9 +340,9 @@ async function searchWeb(
             if (headfulPage && !headfulPage.isClosed()) await headfulPage.close().catch(() => {});
             if (headfulCtx) await headfulCtx.close().catch(() => {});
             decrementActiveTasks();
-            resolveHeadfulSwitch(); // unblock other engines waiting on the switch
+            resolveHeadfulSwitch();
           }
-          break; // CAPTCHA path handled — exit retry loop
+          break;
         }
 
         // ── Happy path ──────────────────────────────────────────────────
@@ -328,18 +396,33 @@ async function detectCaptcha(page: Page): Promise<boolean> {
 async function scrapeGoogle(page: Page): Promise<SearchResult[]> {
   return page.evaluate(() => {
     const results: any[] = [];
-    document.querySelectorAll("div.g").forEach((el) => {
-      const titleEl = el.querySelector("h3");
-      const linkEl = el.querySelector("a");
-      const snippetEl = el.querySelector("div[style*='-webkit-line-clamp']");
-      if (titleEl && linkEl) {
+    // Google uses multiple container classes depending on layout/experiment
+    const containers = [
+      ...Array.from(document.querySelectorAll("div.g")),
+      ...Array.from(document.querySelectorAll("div.tF2Cxc")),
+      ...Array.from(document.querySelectorAll("div[data-hveid] h3")),
+    ];
+    const seen = new Set<string>();
+    for (const el of containers) {
+      // If this is an h3 (from data-hveid fallback), walk up
+      const root = el.tagName === "H3" ? el.closest("[data-hveid]") || el.parentElement! : el;
+      const titleEl = root.querySelector("h3") || (el.tagName === "H3" ? el : null);
+      // Find the nearest <a> that has an http href (not Google internal)
+      const links = Array.from(root.querySelectorAll("a")) as HTMLAnchorElement[];
+      const linkEl = links.find((a) => a.href && a.href.startsWith("http") && !a.href.includes("google.com"));
+      const snippetEl =
+        root.querySelector("div[style*='-webkit-line-clamp']") ||
+        root.querySelector(".VwiC3b") ||
+        root.querySelector("[data-sncf]");
+      if (titleEl && linkEl && !seen.has(linkEl.href)) {
+        seen.add(linkEl.href);
         results.push({
-          title: titleEl.textContent?.trim(),
-          url: (linkEl as HTMLAnchorElement).href,
+          title: titleEl.textContent?.trim() || "",
+          url: linkEl.href,
           snippet: snippetEl?.textContent?.trim() || "",
         });
       }
-    });
+    }
     return results;
   });
 }
@@ -512,10 +595,23 @@ export async function runAIDiscovery(
         if (results.length >= maxResults) break;
         if (seenUrls.has(sr.url)) continue;
 
+        // Resolve Bing redirect URLs (bing.com/ck/a?…) before domain gate check
+        let resolvedUrl = sr.url;
+        if (sr.url.includes("bing.com/ck/a")) {
+          try {
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), 5000);
+            const res = await fetch(sr.url, { method: "HEAD", redirect: "follow", signal: ctrl.signal,
+              headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } });
+            clearTimeout(t);
+            if (res.url && !res.url.includes("bing.com")) resolvedUrl = res.url;
+          } catch { /* keep original */ }
+        }
+
         // Quick URL validation & redirect resolution
-        const { isValid, finalUrl } = await quickValidateUrl(sr.url);
+        const { isValid, finalUrl } = await quickValidateUrl(resolvedUrl);
         if (!isValid) {
-          log("info", `AI Discovery: skipped dead/invalid URL — ${sr.url.substring(0, 60)}`);
+          log("info", `AI Discovery: skipped dead/invalid URL — ${resolvedUrl.substring(0, 60)}`);
           continue;
         }
 

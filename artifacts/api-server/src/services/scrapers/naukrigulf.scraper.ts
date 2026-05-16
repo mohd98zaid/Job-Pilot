@@ -41,16 +41,77 @@ export async function scrapeNaukriGulf(
       "systemId": "default",
     };
 
-    // Try up to 3 pages
-    for (let page = 1; page <= 3; page++) {
-      const searchUrl = `https://www.naukrigulf.com/njapi/v2/job/search?` +
+    // NaukriGulf API — try both known endpoint patterns (the active one changes over time)
+    const API_PATTERNS = [
+      // Pattern A: legacy v2 API (may return HTML on new deployments)
+      (page: number) =>
+        `https://www.naukrigulf.com/njapi/v2/job/search?` +
         `searchType=query` +
         `&keyword=${encodeURIComponent(opts.role)}` +
         `&location=${encodeURIComponent(opts.region)}` +
         `&pageNo=${page}` +
         `&noOfResults=25` +
-        `&sort=1`; // sort=1 → newest first
+        `&sort=1`,
+      // Pattern B: 2024-25 active search API
+      (page: number) =>
+        `https://www.naukrigulf.com/api/search/job-listing?` +
+        `keyword=${encodeURIComponent(opts.role)}` +
+        `&location=${encodeURIComponent(opts.region)}` +
+        `&pageNo=${page}` +
+        `&noOfResults=25` +
+        `&sortBy=date`,
+    ];
 
+    let workingPattern: ((page: number) => string) | null = null;
+
+    // Try up to 3 pages
+    for (let page = 1; page <= 3; page++) {
+      // On first page, detect which API pattern works
+      if (page === 1) {
+        for (const pattern of API_PATTERNS) {
+          const testUrl = pattern(1);
+          const testRes = await fetch(testUrl, { headers });
+          if (testRes.ok) {
+            const ct = testRes.headers.get("content-type") || "";
+            if (ct.includes("json")) {
+              workingPattern = pattern;
+              // Re-parse the first page response we already fetched
+              const data = await testRes.json();
+              const jobs: NaukriGulfJob[] = data?.jobDetails || data?.data || data?.jobs || data?.results || [];
+              for (const job of jobs) {
+                const title = job.title?.trim() || "";
+                const company = job.companyName?.trim() || "Unknown";
+                const location = job.location?.trim() || opts.region;
+                if (!title) continue;
+                if (!isJobRelevant(title, job.description || (job.skills || []).join(" "),
+                  [`loc:${location}`], opts.role, opts.aliases || [], opts.exclusions || [], opts.region)) continue;
+                const url = job.jobUrl?.startsWith("http") ? job.jobUrl : `https://www.naukrigulf.com${job.jobUrl || ""}`;
+                const scrapedJob: ScrapedJob = {
+                  title, company, location,
+                  salary: job.salary || "Not listed",
+                  description: job.description?.substring(0, 500) || (job.skills || []).join(", "),
+                  url, postedAt: job.postedOn,
+                  source: SOURCE,
+                  externalId: `ng-${job.jobId || Buffer.from(url).toString("base64").substring(0, 12)}`,
+                  logo: "NG", color: BASE_COLOR,
+                };
+                results.push(scrapedJob);
+                onJob(scrapedJob);
+              }
+              if (!jobs.length) { workingPattern = null; } // no results, try next pattern
+              else break;
+            }
+          }
+        }
+        if (!workingPattern) {
+          // All JSON patterns failed — try HTML fallback
+          await scrapeNaukriGulfHtml(opts, onJob, onLog, results);
+          break;
+        }
+        continue; // page 1 already processed above
+      }
+
+      const searchUrl = workingPattern!(page);
       const res = await fetch(searchUrl, { headers });
 
       if (!res.ok) {

@@ -8,7 +8,8 @@ import { logger } from "../../lib/logger.js";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0";
 const TIMEOUT = 15000;
-const MAX_PAGES = 5;
+const SAFETY_CAP = 50;      // scrape until empty — stops earlier on last page
+const PAGE_DELAY_MS = 500;
 
 async function safeFetch(url: string, init?: RequestInit): Promise<Response | null> {
   const ctrl = new AbortController();
@@ -24,7 +25,8 @@ function delay(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 // ── GulfTalent ────────────────────────────────────────────────────────────────
 async function scrapeGulfTalent(role: string, region: string): Promise<any[]> {
   const results: any[] = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
+  const seen = new Set<string>();
+  for (let page = 1; page <= SAFETY_CAP; page++) {
     const url = `https://www.gulftalent.com/api/v3/jobs/search?q=${encodeURIComponent(role)}&location=${encodeURIComponent(region)}&page=${page}&limit=20&sort=date`;
     const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "application/json", "Referer": "https://www.gulftalent.com/" } });
 
@@ -40,12 +42,7 @@ async function scrapeGulfTalent(role: string, region: string): Promise<any[]> {
           try {
             const d = JSON.parse(jsonMatch[1]);
             const jobs: any[] = d?.props?.pageProps?.jobs || [];
-            for (const j of jobs) results.push({
-              title: j.title, company: j.company?.name || "Unknown",
-              location: j.location || region, salary: j.salary || "Not listed",
-              url: `https://www.gulftalent.com${j.url || "/jobs/" + j.id}`,
-              externalId: `gt-${j.id}`, source: "GulfTalent",
-            });
+            for (const j of jobs) { if (!seen.has(String(j.id))) { seen.add(String(j.id)); results.push({ title: j.title, company: j.company?.name || "Unknown", location: j.location || region, salary: j.salary || "Not listed", url: `https://www.gulftalent.com${j.url || "/jobs/" + j.id}`, externalId: `gt-${j.id}`, source: "GulfTalent" }); } }
           } catch { /* ignore */ }
         }
       }
@@ -55,15 +52,15 @@ async function scrapeGulfTalent(role: string, region: string): Promise<any[]> {
     let data: any; try { data = await res.json(); } catch { break; }
     const jobs: any[] = data?.jobs || data?.data || data?.results || [];
     if (!jobs.length) break;
+    let newOnPage = 0;
     for (const j of jobs) {
-      results.push({
-        title: j.title, company: j.company || j.companyName || "Unknown",
-        location: j.location || region, salary: j.salary || "Not listed",
-        url: j.url?.startsWith("http") ? j.url : `https://www.gulftalent.com/jobs/${j.id}`,
-        externalId: `gt-${j.id}`, description: j.description?.substring(0, 400), source: "GulfTalent",
-      });
+      const id = String(j.id || j.jobId);
+      if (seen.has(id)) continue;
+      seen.add(id); newOnPage++;
+      results.push({ title: j.title, company: j.company || j.companyName || "Unknown", location: j.location || region, salary: j.salary || "Not listed", url: j.url?.startsWith("http") ? j.url : `https://www.gulftalent.com/jobs/${id}`, externalId: `gt-${id}`, description: j.description?.substring(0, 400), source: "GulfTalent" });
     }
-    await delay(500);
+    if (newOnPage === 0) break;
+    await delay(PAGE_DELAY_MS);
   }
   return results;
 }
@@ -71,7 +68,8 @@ async function scrapeGulfTalent(role: string, region: string): Promise<any[]> {
 // ── MonsterGulf ───────────────────────────────────────────────────────────────
 async function scrapeMonsterGulf(role: string, region: string): Promise<any[]> {
   const results: any[] = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
+  const seen = new Set<string>();
+  for (let page = 1; page <= SAFETY_CAP; page++) {
     const start = (page - 1) * 20;
     const url = `https://www.monstergulf.com/search-jobs.html?q=${encodeURIComponent(role)}&loc=${encodeURIComponent(region)}&start=${start}`;
     const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "text/html" } });
@@ -98,19 +96,13 @@ async function scrapeMonsterGulf(role: string, region: string): Promise<any[]> {
       }
     }
 
-    // Link-level regex fallback
     const linkRe = /href="(\/job-detail[^"]+)"[^>]*>[\s\S]*?<h2[^>]*>([^<]{5,100})<\/h2>[\s\S]*?<span[^>]*company[^>]*>([^<]+)</gi;
-    let m: RegExpExecArray | null;
-    while ((m = linkRe.exec(html))) {
-      results.push({
-        title: m[2].trim(), company: m[3].trim(), location: region,
-        url: `https://www.monstergulf.com${m[1]}`,
-        externalId: `mg-${m[1]}`, source: "MonsterGulf",
-      });
+    let m2: RegExpExecArray | null; let found = 0;
+    while ((m2 = linkRe.exec(html))) {
+      if (!seen.has(m2[1])) { seen.add(m2[1]); found++; results.push({ title: m2[2].trim(), company: m2[3].trim(), location: region, url: `https://www.monstergulf.com${m2[1]}`, externalId: `mg-${m2[1]}`, source: "MonsterGulf" }); }
     }
-
-    if (!results.length && page === 1) break;
-    await delay(600);
+    if (!found && page === 1) break;
+    await delay(PAGE_DELAY_MS);
   }
   return results;
 }
@@ -118,7 +110,8 @@ async function scrapeMonsterGulf(role: string, region: string): Promise<any[]> {
 // ── Dubizzle Jobs ─────────────────────────────────────────────────────────────
 async function scrapeDubizzle(role: string, region: string): Promise<any[]> {
   const results: any[] = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
+  const seen = new Set<string>();
+  for (let page = 1; page <= SAFETY_CAP; page++) {
     const url = `https://uae.dubizzle.com/jobs/search/?q=${encodeURIComponent(role)}&page=${page}`;
     const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "text/html", "Referer": "https://uae.dubizzle.com/" } });
     if (!res?.ok) break;
@@ -130,18 +123,12 @@ async function scrapeDubizzle(role: string, region: string): Promise<any[]> {
         const d = JSON.parse(jsonMatch[1]);
         const jobs: any[] = d?.props?.pageProps?.results || d?.props?.pageProps?.jobs || [];
         if (!jobs.length) break;
-        for (const j of jobs) {
-          results.push({
-            title: j.title || j.name, company: j.company || j.organization || "Unknown",
-            location: j.location || j.area || region,
-            salary: j.salary || j.price || "Not listed",
-            url: j.absolute_url || `https://uae.dubizzle.com${j.url || "/jobs/" + j.id}`,
-            externalId: `dz-${j.id}`, postedAt: j.added, source: "Dubizzle",
-          });
-        }
+        let newOnPage = 0;
+        for (const j of jobs) { const id = String(j.id); if (!seen.has(id)) { seen.add(id); newOnPage++; results.push({ title: j.title || j.name, company: j.company || j.organization || "Unknown", location: j.location || j.area || region, salary: j.salary || j.price || "Not listed", url: j.absolute_url || `https://uae.dubizzle.com${j.url || "/jobs/" + id}`, externalId: `dz-${id}`, postedAt: j.added, source: "Dubizzle" }); } }
+        if (newOnPage === 0) break;
       } catch { break; }
     } else break;
-    await delay(500);
+    await delay(PAGE_DELAY_MS);
   }
   return results;
 }
@@ -149,7 +136,8 @@ async function scrapeDubizzle(role: string, region: string): Promise<any[]> {
 // ── DrJobs.ae ─────────────────────────────────────────────────────────────────
 async function scrapeDrJobs(role: string, region: string): Promise<any[]> {
   const results: any[] = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
+  const seen = new Set<string>();
+  for (let page = 1; page <= SAFETY_CAP; page++) {
     const url = `https://api.drjobs.ae/api/v2/jobs?title=${encodeURIComponent(role)}&country=${encodeURIComponent(region)}&page=${page}&perPage=20&sortBy=newest`;
     const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "application/json", "Referer": "https://www.drjobs.ae/" } });
     if (!res?.ok) {
@@ -178,15 +166,10 @@ async function scrapeDrJobs(role: string, region: string): Promise<any[]> {
     let data: any; try { data = await res.json(); } catch { break; }
     const jobs: any[] = data?.data || data?.jobs || [];
     if (!jobs.length) break;
-    for (const j of jobs) {
-      results.push({
-        title: j.title, company: j.company?.name || j.companyName || "Unknown",
-        location: j.country || j.city || region, salary: j.salary || "Not listed",
-        url: `https://www.drjobs.ae/jobs/${j.slug || j.id}`,
-        externalId: `drj-${j.id}`, description: j.description?.substring(0, 400), source: "DrJobs",
-      });
-    }
-    await delay(500);
+    let newOnPage = 0;
+    for (const j of jobs) { const id = String(j.id); if (!seen.has(id)) { seen.add(id); newOnPage++; results.push({ title: j.title, company: j.company?.name || j.companyName || "Unknown", location: j.country || j.city || region, salary: j.salary || "Not listed", url: `https://www.drjobs.ae/jobs/${j.slug || id}`, externalId: `drj-${id}`, description: j.description?.substring(0, 400), source: "DrJobs" }); } }
+    if (newOnPage === 0) break;
+    await delay(PAGE_DELAY_MS);
   }
   return results;
 }
@@ -194,22 +177,18 @@ async function scrapeDrJobs(role: string, region: string): Promise<any[]> {
 // ── Laimoon.com ──────────────────────────────────────────────────────────────
 async function scrapeLaimoon(role: string, region: string): Promise<any[]> {
   const results: any[] = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
+  const seen = new Set<string>();
+  for (let page = 1; page <= SAFETY_CAP; page++) {
     const url = `https://laimoon.com/api/jobs/search?q=${encodeURIComponent(role)}&location=${encodeURIComponent(region)}&page=${page}&per_page=20`;
     const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "application/json", "Referer": "https://laimoon.com/" } });
     if (!res?.ok) break;
     let data: any; try { data = await res.json(); } catch { break; }
     const jobs: any[] = data?.data || data?.jobs || data?.results || [];
     if (!jobs.length) break;
-    for (const j of jobs) {
-      results.push({
-        title: j.title || j.job_title, company: j.company || j.employer || "Unknown",
-        location: j.location || j.city || region, salary: j.salary || "Not listed",
-        url: j.url || `https://laimoon.com/jobs/${j.id}`, externalId: `lm-${j.id}`,
-        description: j.description?.substring(0, 400), source: "Laimoon",
-      });
-    }
-    await delay(500);
+    let newOnPage = 0;
+    for (const j of jobs) { const id = String(j.id); if (!seen.has(id)) { seen.add(id); newOnPage++; results.push({ title: j.title || j.job_title, company: j.company || j.employer || "Unknown", location: j.location || j.city || region, salary: j.salary || "Not listed", url: j.url || `https://laimoon.com/jobs/${id}`, externalId: `lm-${id}`, description: j.description?.substring(0, 400), source: "Laimoon" }); } }
+    if (newOnPage === 0) break;
+    await delay(PAGE_DELAY_MS);
   }
   return results;
 }
@@ -232,7 +211,8 @@ async function scrapeTanqeeb(role: string, region: string): Promise<any[]> {
 // ── Akhtaboot (Middle East) ──────────────────────────────────────────────────
 async function scrapeAkhtaboot(role: string, region: string): Promise<any[]> {
   const results: any[] = [];
-  for (let page = 1; page <= 3; page++) {
+  const seen = new Set<string>();
+  for (let page = 1; page <= SAFETY_CAP; page++) {
     const url = `https://www.akhtaboot.com/en/jobs?q=${encodeURIComponent(role)}&l=${encodeURIComponent(region)}&page=${page}`;
     const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "text/html" } });
     if (!res?.ok) break;
@@ -244,12 +224,9 @@ async function scrapeAkhtaboot(role: string, region: string): Promise<any[]> {
         const d = JSON.parse(jm[1]);
         const jobs: any[] = d?.props?.pageProps?.jobs || d?.props?.pageProps?.results || [];
         if (!jobs.length) break;
-        for (const j of jobs) results.push({
-          title: j.title, company: j.company_name || "Unknown",
-          location: j.country || j.city || region, salary: "Not listed",
-          url: j.link || `https://www.akhtaboot.com/en/job/${j.id}`,
-          externalId: `ab-${j.id}`, source: "Akhtaboot",
-        });
+        let newOnPage = 0;
+        for (const j of jobs) { const id = String(j.id); if (!seen.has(id)) { seen.add(id); newOnPage++; results.push({ title: j.title, company: j.company_name || "Unknown", location: j.country || j.city || region, salary: "Not listed", url: j.link || `https://www.akhtaboot.com/en/job/${id}`, externalId: `ab-${id}`, source: "Akhtaboot" }); } }
+        if (newOnPage === 0) break;
       } catch { break; }
     }
 
@@ -276,7 +253,8 @@ async function scrapeAkhtaboot(role: string, region: string): Promise<any[]> {
 // ── GulfJobs.com ──────────────────────────────────────────────────────────────
 async function scrapeGulfJobs(role: string, region: string): Promise<any[]> {
   const results: any[] = [];
-  for (let page = 1; page <= 3; page++) {
+  const seen = new Set<string>();
+  for (let page = 1; page <= SAFETY_CAP; page++) {
     const url = `https://www.gulfjobs.com/jobs/search?keywords=${encodeURIComponent(role)}&location=${encodeURIComponent(region)}&page=${page}`;
     const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "text/html" } });
     if (!res?.ok) break;
@@ -289,18 +267,11 @@ async function scrapeGulfJobs(role: string, region: string): Promise<any[]> {
         const d = JSON.parse(m[1]);
         const list = Array.isArray(d) ? d : d["@graph"] || [d];
         for (const item of list) {
-          if (item["@type"] === "JobPosting") {
-            results.push({
-              title: item.title, company: item.hiringOrganization?.name || "Unknown",
-              location: item.jobLocation?.address?.addressLocality || region,
-              url: item.url, externalId: `gj-${item.url}`,
-              postedAt: item.datePosted, source: "GulfJobs",
-            });
-          }
+          if (item["@type"] === "JobPosting" && !seen.has(item.url)) { seen.add(item.url); results.push({ title: item.title, company: item.hiringOrganization?.name || "Unknown", location: item.jobLocation?.address?.addressLocality || region, url: item.url, externalId: `gj-${item.url}`, postedAt: item.datePosted, source: "GulfJobs" }); }
         }
       } catch { /* ignore */ }
     }
-    await delay(600);
+    await delay(PAGE_DELAY_MS);
   }
   return results;
 }
