@@ -1,6 +1,7 @@
 // artifacts/api-server/src/services/scrapers/indeed.scraper.ts
 import { getBrowser, newStealthContext, humanDelay, humanScroll } from "./browser.js";
 import { type ScrapedJob, type SearchOptions, type JobEmitter, type LogEmitter } from "./types.js";
+import { buildLocationTerms } from "./relevance.js";
 import { logger } from "../../lib/logger.js";
 
 const SOURCE = "Indeed";
@@ -99,16 +100,9 @@ export async function scrapeIndeed(
     }, { source: SOURCE, base: baseUrl });
 
     // ── Location filter ──────────────────────────────────────────────────────
-    // Indeed's search URL already filters by location. We only hard-reject jobs
-    // that explicitly mention a DIFFERENT city/country in their location field.
-    // Empty location or "Remote" always passes through.
-    const regionNorm = opts.region.toLowerCase().split(/[,/\s]+/).filter((p) => p.length > 2);
-
-    // Known "other regions" that would indicate location drift
-    const OTHER_MAJOR_REGIONS = [
-      "india", "bangalore", "mumbai", "delhi", "hyderabad", "chennai", "pune", "kolkata",
-      "usa", "new york", "san francisco", "london", "singapore", "australia", "canada",
-    ].filter((r) => !regionNorm.includes(r)); // don't reject if user asked for this
+    // STRICT: Only accept jobs that match the target region.
+    // Indeed's search URL filters by location, but sometimes returns nearby/remote jobs.
+    const regionTerms = buildLocationTerms(opts.region.toLowerCase());
 
     for (const job of jobs) {
       const jobLocLower = (job.location || "").toLowerCase();
@@ -121,10 +115,13 @@ export async function scrapeIndeed(
       }
 
       const isRemote = jobLocLower.includes("remote") || jobLocLower.includes("anywhere") || jobLocLower.includes("worldwide");
-      const matchesRegion = isRemote || regionNorm.some((part) => jobLocLower.includes(part));
-      const isOtherRegion = !matchesRegion && OTHER_MAJOR_REGIONS.some((r) => jobLocLower.includes(r));
+      const matchesRegion = isRemote || regionTerms.some((term) => jobLocLower.includes(term));
 
-      if (isOtherRegion) continue; // hard reject — explicitly wrong location
+      // Also allow generic Gulf terms for Gulf searches
+      const isGenericGulf = (jobLocLower.includes("middle east") || jobLocLower.includes("gcc") || jobLocLower.includes("mena"));
+      const targetIsGulf = regionTerms.some(t => ["dubai", "uae", "abu dhabi", "saudi", "qatar", "bahrain", "kuwait", "oman", "gulf"].includes(t));
+
+      if (!matchesRegion && !(isGenericGulf && targetIsGulf)) continue; // STRICT reject
 
       const scrapedJob: ScrapedJob = { ...job, logo: "IN", color: BASE_COLOR };
       results.push(scrapedJob);

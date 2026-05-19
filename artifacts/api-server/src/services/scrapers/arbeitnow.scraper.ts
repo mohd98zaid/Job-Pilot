@@ -36,14 +36,39 @@ export async function scrapeArbeitnow(
 
     const maxDays = dateFilterToDays(opts.dateFilter);
     const cutoffTimestamp = Math.floor(Date.now() / 1000) - maxDays * 86400;
-    const roleKeywords = opts.role.toLowerCase().split(/\s+/);
 
-    // Fetch up to 2 pages (100 jobs)
+    // Arbeitnow API doesn't support keyword search — it returns ALL jobs.
+    // We need to fetch multiple pages and filter client-side.
+    // To improve relevance, also try the search page URL which may filter server-side.
+    const roleSlug = opts.role.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    
+    const apiUrls = [
+      // Try search endpoint first (may support filtering)
+      `${API_BASE}?search=${encodeURIComponent(opts.role)}&page=1`,
+      `${API_BASE}?page=1`,
+    ];
+
     let page = 1;
-    const maxPages = 2;
+    const maxPages = 3;
+    let usedUrl = apiUrls[0];
+
+    // Test which URL returns relevant results
+    for (const testUrl of apiUrls) {
+      const testRes = await fetch(testUrl, {
+        headers: { "User-Agent": "Mozilla/5.0 JobPilot/2.0", "Accept": "application/json" },
+      });
+      if (testRes.ok) {
+        usedUrl = testUrl.replace(/page=\d+/, "page=");
+        break;
+      }
+    }
 
     while (page <= maxPages) {
-      const res = await fetch(`${API_BASE}?page=${page}`, {
+      const fetchUrl = usedUrl.includes("page=") 
+        ? usedUrl + page 
+        : `${usedUrl}&page=${page}`;
+        
+      const res = await fetch(fetchUrl, {
         headers: {
           "User-Agent": "Mozilla/5.0 JobPilot/2.0",
           "Accept": "application/json",
@@ -66,7 +91,7 @@ export async function scrapeArbeitnow(
         if (job.created_at < cutoffTimestamp) continue;
 
         // Role relevance filter
-        if (!isJobRelevant(job.title, job.description, [`loc:${job.location}`], opts.role, opts.aliases || [], opts.exclusions || [], opts.region)) continue;
+        if (!isJobRelevant(job.title, job.description, job.tags || [], opts.role, opts.aliases || [], opts.exclusions || [], opts.region)) continue;
 
         // Region filter — include remote and matching location
         const regionLower = opts.region.toLowerCase();

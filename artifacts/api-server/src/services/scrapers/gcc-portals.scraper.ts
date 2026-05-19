@@ -26,43 +26,103 @@ function delay(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 async function scrapeGulfTalent(role: string, region: string): Promise<any[]> {
   const results: any[] = [];
   const seen = new Set<string>();
-  for (let page = 1; page <= SAFETY_CAP; page++) {
-    const url = `https://www.gulftalent.com/api/v3/jobs/search?q=${encodeURIComponent(role)}&location=${encodeURIComponent(region)}&page=${page}&limit=20&sort=date`;
-    const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "application/json", "Referer": "https://www.gulftalent.com/" } });
+  
+  // GulfTalent doesn't have a public JSON API — scrape their search page HTML
+  for (let page = 1; page <= 3; page++) {
+    // Try the search URL format
+    const url = `https://www.gulftalent.com/jobs/search?q=${encodeURIComponent(role)}&location=${encodeURIComponent(region)}&page=${page}`;
+    const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "text/html", "Referer": "https://www.gulftalent.com/" } });
 
-    // If JSON API fails, try HTML scraping
     if (!res?.ok) {
+      // Try alternative URL format
       if (page === 1) {
-        const htmlUrl = `https://www.gulftalent.com/jobs?q=${encodeURIComponent(role)}&location=${encodeURIComponent(region)}`;
-        const htmlRes = await safeFetch(htmlUrl, { headers: { "User-Agent": UA } });
-        if (!htmlRes?.ok) break;
-        const html = await htmlRes.text();
-        const jsonMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>({[\s\S]*?})<\/script>/);
-        if (jsonMatch) {
-          try {
-            const d = JSON.parse(jsonMatch[1]);
-            const jobs: any[] = d?.props?.pageProps?.jobs || [];
-            for (const j of jobs) { if (!seen.has(String(j.id))) { seen.add(String(j.id)); results.push({ title: j.title, company: j.company?.name || "Unknown", location: j.location || region, salary: j.salary || "Not listed", url: `https://www.gulftalent.com${j.url || "/jobs/" + j.id}`, externalId: `gt-${j.id}`, source: "GulfTalent" }); } }
-          } catch { /* ignore */ }
-        }
+        const altUrl = `https://www.gulftalent.com/jobs?q=${encodeURIComponent(role)}&location=${encodeURIComponent(region)}`;
+        const altRes = await safeFetch(altUrl, { headers: { "User-Agent": UA, "Accept": "text/html" } });
+        if (!altRes?.ok) break;
+        const html = await altRes.text();
+        extractGulfTalentJobs(html, region, results, seen);
       }
       break;
     }
 
-    let data: any; try { data = await res.json(); } catch { break; }
-    const jobs: any[] = data?.jobs || data?.data || data?.results || [];
-    if (!jobs.length) break;
-    let newOnPage = 0;
-    for (const j of jobs) {
-      const id = String(j.id || j.jobId);
-      if (seen.has(id)) continue;
-      seen.add(id); newOnPage++;
-      results.push({ title: j.title, company: j.company || j.companyName || "Unknown", location: j.location || region, salary: j.salary || "Not listed", url: j.url?.startsWith("http") ? j.url : `https://www.gulftalent.com/jobs/${id}`, externalId: `gt-${id}`, description: j.description?.substring(0, 400), source: "GulfTalent" });
-    }
-    if (newOnPage === 0) break;
+    const html = await res.text();
+    const beforeCount = results.length;
+    extractGulfTalentJobs(html, region, results, seen);
+    if (results.length === beforeCount) break; // No new results on this page
     await delay(PAGE_DELAY_MS);
   }
   return results;
+}
+
+function extractGulfTalentJobs(html: string, region: string, results: any[], seen: Set<string>): void {
+  // Strategy 1: __NEXT_DATA__ JSON
+  const jsonMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>({[\s\S]*?})<\/script>/);
+  if (jsonMatch) {
+    try {
+      const d = JSON.parse(jsonMatch[1]);
+      const jobs: any[] = d?.props?.pageProps?.jobs || d?.props?.pageProps?.searchResults?.jobs || [];
+      for (const j of jobs) {
+        const id = String(j.id || j.jobId || j.slug);
+        if (!seen.has(id)) {
+          seen.add(id);
+          results.push({
+            title: j.title || j.jobTitle,
+            company: j.company?.name || j.companyName || "Unknown",
+            location: j.location || j.city || region,
+            salary: j.salary || "Not listed",
+            url: j.url?.startsWith("http") ? j.url : `https://www.gulftalent.com${j.url || "/jobs/" + id}`,
+            externalId: `gt-${id}`,
+            description: (j.description || "").substring(0, 400),
+            source: "GulfTalent",
+          });
+        }
+      }
+      return;
+    } catch { /* fall through */ }
+  }
+
+  // Strategy 2: JSON-LD structured data
+  const ldRe = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = ldRe.exec(html))) {
+    try {
+      const d = JSON.parse(m[1]);
+      const items = Array.isArray(d) ? d : d["@graph"] || [d];
+      for (const item of items) {
+        if (item["@type"] === "JobPosting" && !seen.has(item.url || item.title)) {
+          seen.add(item.url || item.title);
+          results.push({
+            title: item.title,
+            company: item.hiringOrganization?.name || "Unknown",
+            location: item.jobLocation?.address?.addressLocality || region,
+            salary: item.baseSalary?.value?.value || "Not listed",
+            url: item.url || "",
+            externalId: `gt-${item.url || item.title}`,
+            postedAt: item.datePosted,
+            source: "GulfTalent",
+          });
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Strategy 3: HTML regex fallback — look for job card patterns
+  const cardRe = /<a[^>]*href="(\/jobs?\/[^"]+)"[^>]*>[\s\S]*?<(?:h[23]|span|div)[^>]*>([^<]{5,100})<\/(?:h[23]|span|div)>/gi;
+  while ((m = cardRe.exec(html))) {
+    const href = m[1];
+    const title = m[2].trim();
+    if (!seen.has(href) && title.length > 5) {
+      seen.add(href);
+      results.push({
+        title,
+        company: "Unknown",
+        location: region,
+        url: `https://www.gulftalent.com${href}`,
+        externalId: `gt-${href}`,
+        source: "GulfTalent",
+      });
+    }
+  }
 }
 
 // ── MonsterGulf ───────────────────────────────────────────────────────────────
@@ -111,24 +171,70 @@ async function scrapeMonsterGulf(role: string, region: string): Promise<any[]> {
 async function scrapeDubizzle(role: string, region: string): Promise<any[]> {
   const results: any[] = [];
   const seen = new Set<string>();
-  for (let page = 1; page <= SAFETY_CAP; page++) {
-    const url = `https://uae.dubizzle.com/jobs/search/?q=${encodeURIComponent(role)}&page=${page}`;
-    const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "text/html", "Referer": "https://uae.dubizzle.com/" } });
-    if (!res?.ok) break;
-    const html = await res.text();
+  
+  // Dubizzle UAE uses multiple URL patterns — try them
+  const urls = [
+    `https://uae.dubizzle.com/jobs/search/?q=${encodeURIComponent(role)}`,
+    `https://www.dubizzle.com/jobs/?q=${encodeURIComponent(role)}&city=${encodeURIComponent(region)}`,
+  ];
 
-    const jsonMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>({[\s\S]*?})<\/script>/);
-    if (jsonMatch) {
-      try {
-        const d = JSON.parse(jsonMatch[1]);
-        const jobs: any[] = d?.props?.pageProps?.results || d?.props?.pageProps?.jobs || [];
-        if (!jobs.length) break;
-        let newOnPage = 0;
-        for (const j of jobs) { const id = String(j.id); if (!seen.has(id)) { seen.add(id); newOnPage++; results.push({ title: j.title || j.name, company: j.company || j.organization || "Unknown", location: j.location || j.area || region, salary: j.salary || j.price || "Not listed", url: j.absolute_url || `https://uae.dubizzle.com${j.url || "/jobs/" + id}`, externalId: `dz-${id}`, postedAt: j.added, source: "Dubizzle" }); } }
-        if (newOnPage === 0) break;
-      } catch { break; }
-    } else break;
-    await delay(PAGE_DELAY_MS);
+  for (const baseUrl of urls) {
+    for (let page = 1; page <= 3; page++) {
+      const url = page === 1 ? baseUrl : `${baseUrl}&page=${page}`;
+      const res = await safeFetch(url, { headers: { "User-Agent": UA, "Accept": "text/html", "Referer": "https://uae.dubizzle.com/" } });
+      if (!res?.ok) break;
+      const html = await res.text();
+
+      // Strategy 1: __NEXT_DATA__
+      const jsonMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>({[\s\S]*?})<\/script>/);
+      if (jsonMatch) {
+        try {
+          const d = JSON.parse(jsonMatch[1]);
+          const jobs: any[] = d?.props?.pageProps?.results || d?.props?.pageProps?.jobs || d?.props?.pageProps?.listings || [];
+          if (!jobs.length && page === 1) break;
+          if (!jobs.length) break;
+          let newOnPage = 0;
+          for (const j of jobs) { 
+            const id = String(j.id || j.listing_id); 
+            if (!seen.has(id)) { 
+              seen.add(id); 
+              newOnPage++; 
+              results.push({ 
+                title: j.title || j.name, 
+                company: j.company || j.organization || "Unknown", 
+                location: j.location || j.area || j.city || region, 
+                salary: j.salary || j.price || "Not listed", 
+                url: j.absolute_url || j.url || `https://uae.dubizzle.com${j.relative_url || "/jobs/" + id}`, 
+                externalId: `dz-${id}`, 
+                postedAt: j.added || j.created_at, 
+                source: "Dubizzle" 
+              }); 
+            } 
+          }
+          if (newOnPage === 0) break;
+        } catch { break; }
+      } else {
+        // Strategy 2: JSON-LD
+        const ldRe = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi;
+        let m: RegExpExecArray | null;
+        while ((m = ldRe.exec(html))) {
+          try {
+            const d = JSON.parse(m[1]);
+            if (d["@type"] === "JobPosting" && !seen.has(d.url)) {
+              seen.add(d.url);
+              results.push({
+                title: d.title, company: d.hiringOrganization?.name || "Unknown",
+                location: d.jobLocation?.address?.addressLocality || region,
+                url: d.url, externalId: `dz-${d.url}`, source: "Dubizzle",
+              });
+            }
+          } catch { /* ignore */ }
+        }
+        if (results.length === 0 && page === 1) break;
+      }
+      await delay(PAGE_DELAY_MS);
+    }
+    if (results.length > 0) break; // Found results with this URL pattern
   }
   return results;
 }

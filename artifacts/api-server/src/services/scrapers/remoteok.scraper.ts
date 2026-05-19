@@ -34,24 +34,62 @@ export async function scrapeRemoteOK(
   try {
     onLog("info", `RemoteOK: searching for "${opts.role}"...`);
 
-    const res = await fetch(`${API_URL}?tags=${encodeURIComponent(opts.role.toLowerCase().replace(/\s+/g, "+"))}`, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 JobPilot/2.0",
-        "Accept": "application/json",
-      },
-    });
+    // RemoteOK API uses tags separated by commas or individual words.
+    // Multi-word queries like "agentic AI" need to be split into individual tags
+    // or simplified to the most relevant single tag.
+    const roleLower = opts.role.toLowerCase();
+    const tags = roleLower
+      .replace(/[^a-z0-9\s]/g, "")  // Remove special chars
+      .split(/\s+/)
+      .filter(t => t.length > 1)
+      .join(",");
 
-    if (!res.ok) {
-      onLog("error", `RemoteOK: HTTP ${res.status} — skipping`);
-      return results;
+    // Also try the full phrase as a single tag (hyphenated)
+    const slugTag = roleLower.replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+
+    // Also try individual keywords (e.g., just "ai" for "agentic AI")
+    const individualTags = roleLower
+      .replace(/[^a-z0-9\s]/g, "")
+      .split(/\s+/)
+      .filter(t => t.length > 1);
+
+    // Try multiple query formats for better coverage
+    const urls = [
+      `${API_URL}?tags=${encodeURIComponent(tags)}`,
+      `${API_URL}?tags=${encodeURIComponent(slugTag)}`,
+      // Also try each individual keyword (broader search)
+      ...individualTags.map(t => `${API_URL}?tags=${encodeURIComponent(t)}`),
+    ];
+    // Deduplicate URLs
+    const uniqueUrls = [...new Set(urls)];
+
+    let allJobs: RemoteOKJob[] = [];
+    const seenIds = new Set<string>();
+
+    for (const apiUrl of uniqueUrls) {
+      try {
+        const res = await fetch(apiUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 JobPilot/2.0",
+            "Accept": "application/json",
+          },
+        });
+
+        if (!res.ok) continue;
+
+        const raw: RemoteOKJob[] = await res.json();
+        // First item is metadata, skip it
+        const jobs = Array.isArray(raw) ? raw.slice(1) : [];
+        for (const j of jobs) {
+          if (!seenIds.has(j.id)) {
+            seenIds.add(j.id);
+            allJobs.push(j);
+          }
+        }
+      } catch { /* try next URL */ }
     }
 
-    const raw: RemoteOKJob[] = await res.json();
-    
-    // First item is metadata, skip it
-    const jobs = Array.isArray(raw) ? raw.slice(1) : [];
-
-    const filtered = jobs.filter((j) => {
+    const filtered = allJobs.filter((j) => {
       return isJobRelevant(j.position || "", j.description || "", j.tags || [], opts.role, opts.aliases || [], opts.exclusions || [], opts.region);
     });
 

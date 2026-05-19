@@ -18,16 +18,15 @@ export function isJobRelevant(
   const text = `${title} ${tags.join(" ")} ${description.substring(0, 500)}`.toLowerCase();
   const query = roleQuery.toLowerCase();
 
-  // 0. Location check (if targetRegion provided)
+  // 0. Location check (if targetRegion provided) — STRICT enforcement
   if (targetRegion) {
     const regionLower = targetRegion.toLowerCase();
     const rawLocation = (tags.find(t => t.startsWith("loc:")) || "").replace("loc:", "").toLowerCase().trim();
 
-    // No location → trust the search URL / caller's filtering (pass through)
-    if (rawLocation && rawLocation !== "not listed" && rawLocation !== "remote") {
+    if (rawLocation && rawLocation !== "not listed" && rawLocation !== "not specified") {
       // Build expanded region terms for alias matching
       const regionTerms = buildLocationTerms(regionLower);
-      const isRemote = rawLocation.includes("remote") || rawLocation.includes("anywhere") || text.includes("remote");
+      const isRemote = rawLocation.includes("remote") || rawLocation.includes("anywhere") || rawLocation.includes("worldwide");
 
       // Match if the location contains any of our region terms
       const isMatch = isRemote || regionTerms.some((term) =>
@@ -35,37 +34,22 @@ export function isJobRelevant(
       );
 
       if (!isMatch) {
-        // Hard-reject only if location explicitly names a DIFFERENT major region.
-        // This list covers all countries/cities that are NOT part of the UAE/Gulf cluster.
-        const OTHER_REGIONS = [
-          // South Asia
-          "india", "bangalore", "bengaluru", "mumbai", "delhi", "hyderabad", "pune",
-          "chennai", "kolkata", "noida", "gurgaon", "pakistan", "karachi", "lahore",
-          "islamabad", "bangladesh", "dhaka", "sri lanka", "colombo", "nepal", "kathmandu",
-          // Southeast Asia
-          "singapore", "malaysia", "kuala lumpur", "indonesia", "jakarta",
-          "philippines", "manila", "vietnam", "hanoi", "thailand", "bangkok",
-          // East Asia
-          "china", "beijing", "shanghai", "hong kong", "japan", "tokyo", "south korea", "seoul",
-          // Europe
-          "london", "united kingdom", "uk", "germany", "berlin", "france", "paris",
-          "netherlands", "amsterdam", "spain", "madrid", "italy", "rome", "sweden", "stockholm",
-          "norway", "oslo", "denmark", "copenhagen", "poland", "warsaw",
-          // Americas
-          "new york", "san francisco", "los angeles", "chicago", "toronto", "canada",
-          "brazil", "são paulo", "mexico", "mexico city",
-          // Oceania
-          "sydney", "melbourne", "australia", "new zealand", "auckland",
-          // Africa (non-Gulf MENA)
-          "egypt", "cairo", "south africa", "johannesburg", "nigeria", "lagos",
-        ];
-        const isDifferentRegion = OTHER_REGIONS.some((r) =>
-          rawLocation.includes(r) && !regionTerms.includes(r)
-        );
-        if (isDifferentRegion) return false;
-        // Otherwise: uncertain location → allow (don't reject on ambiguity)
+        // STRICT: reject if location doesn't match the target region.
+        // Only exception: if the location is very generic (e.g., "Middle East", "GCC", "MENA")
+        // and the target is a Gulf country, allow it.
+        const genericGulfTerms = ["middle east", "gcc", "mena", "gulf"];
+        const isGenericGulf = genericGulfTerms.some(g => rawLocation.includes(g));
+        const targetIsGulf = ["dubai", "uae", "abu dhabi", "sharjah", "qatar", "saudi", "bahrain", "kuwait", "oman"]
+          .some(g => regionLower.includes(g));
+        
+        if (isGenericGulf && targetIsGulf) {
+          // Allow — "Middle East" is acceptable for Gulf searches
+        } else {
+          return false; // Location doesn't match — reject
+        }
       }
     }
+    // If no location data → pass through (trust the search URL filtering)
   }
 
   // 0. Exclusions check (highest priority)
@@ -108,20 +92,76 @@ export function buildLocationTerms(region: string): string[] {
   const r = region.toLowerCase();
   const terms: string[] = [r];
 
-  if (r.includes("dubai") || r.includes("uae") || r.includes("abu dhabi") || r.includes("sharjah")) {
-    terms.push("dubai", "uae", "united arab emirates", "gulf", "ae");
-  } else if (r.includes("bangalore") || r.includes("bengaluru")) {
+  // Gulf / UAE
+  if (r.includes("dubai") || r.includes("uae") || r.includes("abu dhabi") || r.includes("sharjah") || r.includes("ajman")) {
+    terms.push("dubai", "uae", "united arab emirates", "abu dhabi", "sharjah", "ajman", "ras al", "fujairah", "gulf", "ae");
+  }
+  // Saudi Arabia
+  else if (r.includes("saudi") || r.includes("riyadh") || r.includes("jeddah") || r.includes("ksa")) {
+    terms.push("saudi", "saudi arabia", "riyadh", "jeddah", "dammam", "ksa", "khobar");
+  }
+  // Qatar
+  else if (r.includes("qatar") || r.includes("doha")) {
+    terms.push("qatar", "doha");
+  }
+  // Bahrain
+  else if (r.includes("bahrain") || r.includes("manama")) {
+    terms.push("bahrain", "manama");
+  }
+  // Kuwait
+  else if (r.includes("kuwait")) {
+    terms.push("kuwait", "kuwait city");
+  }
+  // Oman
+  else if (r.includes("oman") || r.includes("muscat")) {
+    terms.push("oman", "muscat");
+  }
+  // India (general)
+  else if (r === "india" || r === "in") {
+    terms.push("india", "bangalore", "bengaluru", "mumbai", "delhi", "hyderabad", "pune",
+      "chennai", "kolkata", "noida", "gurgaon", "gurugram", "ncr", "in");
+  }
+  // Indian cities
+  else if (r.includes("bangalore") || r.includes("bengaluru")) {
     terms.push("bangalore", "bengaluru", "karnataka", "india");
   } else if (r.includes("mumbai") || r.includes("bombay")) {
     terms.push("mumbai", "bombay", "maharashtra", "india");
-  } else if (r.includes("singapore")) {
+  } else if (r.includes("delhi") || r.includes("ncr") || r.includes("noida") || r.includes("gurgaon") || r.includes("gurugram")) {
+    terms.push("delhi", "new delhi", "ncr", "noida", "gurgaon", "gurugram", "india");
+  } else if (r.includes("hyderabad")) {
+    terms.push("hyderabad", "telangana", "india");
+  } else if (r.includes("pune")) {
+    terms.push("pune", "maharashtra", "india");
+  } else if (r.includes("chennai")) {
+    terms.push("chennai", "tamil nadu", "india");
+  }
+  // Singapore
+  else if (r.includes("singapore")) {
     terms.push("singapore", "sg");
-  } else if (r.includes("london")) {
+  }
+  // UK
+  else if (r.includes("london") || r.includes("uk") || r.includes("united kingdom")) {
     terms.push("london", "uk", "united kingdom", "england", "britain");
-  } else if (r.includes("new york") || r.includes("nyc")) {
+  }
+  // USA
+  else if (r.includes("new york") || r.includes("nyc")) {
     terms.push("new york", "nyc", "ny", "usa", "united states");
-  } else if (r.includes("india")) {
-    terms.push("india", "in", "bharat");
+  } else if (r.includes("san francisco") || r.includes("sf") || r.includes("bay area")) {
+    terms.push("san francisco", "sf", "bay area", "california", "usa", "united states");
+  } else if (r.includes("usa") || r.includes("united states")) {
+    terms.push("usa", "united states", "us");
+  }
+  // Canada
+  else if (r.includes("canada") || r.includes("toronto")) {
+    terms.push("canada", "toronto", "vancouver", "montreal", "ca");
+  }
+  // Australia
+  else if (r.includes("australia") || r.includes("sydney") || r.includes("melbourne")) {
+    terms.push("australia", "sydney", "melbourne", "au");
+  }
+  // Germany
+  else if (r.includes("germany") || r.includes("berlin") || r.includes("munich")) {
+    terms.push("germany", "berlin", "munich", "frankfurt", "de", "deutschland");
   }
 
   return [...new Set(terms)];

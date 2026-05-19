@@ -336,36 +336,52 @@ export default function JobPilot() {
 
 
   return (
-    <div style={{ fontFamily: "'Sora', 'Plus Jakarta Sans', system-ui, sans-serif", background: "#070d1a", minHeight: "100vh", color: "#e2e8f0", display: "flex", flexDirection: "column" }}>
+    <div className="min-h-screen text-slate-100 flex flex-col font-sans relative z-0">
+      {/* Mesh Background */}
+      <div className="mesh-bg"></div>
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", padding: "14px 28px", borderBottom: "1px solid #0f172a", background: "rgba(7,13,26,0.95)", backdropFilter: "blur(10px)", position: "sticky", top: 0, zIndex: 100, gap: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #0ea5e9, #818cf8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>✦</div>
-          <span style={{ fontWeight: 700, fontSize: 17, letterSpacing: "-0.02em" }}>Job<span style={{ color: "#38bdf8" }}>Pilot</span></span>
-          <span style={{ fontSize: 11, color: "#334155", fontFamily: "monospace", background: "#0f172a", padding: "2px 8px", borderRadius: 4 }}>v2.0</span>
+      <header className="sticky top-0 z-50 px-6 py-4 border-b border-white/10 bg-slate-950/40 backdrop-blur-xl flex items-center gap-6 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-xl shadow-lg shadow-sky-500/20 text-white font-bold">
+            ✦
+          </div>
+          <span className="font-bold text-xl tracking-tight">
+            Job<span className="text-sky-400">Pilot</span>
+          </span>
+          <span className="text-xs text-slate-400 font-mono bg-slate-900/50 px-2 py-1 rounded-md border border-white/5">
+            v2.0
+          </span>
         </div>
-        <div style={{ flex: 1 }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#64748b" }}>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#10b981", animation: "pulse-dot 2s infinite" }} />
+        <div className="flex-1" />
+        <div className="flex items-center gap-2 text-xs font-medium text-slate-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">
+          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           {selectedAI === "Claude (Anthropic)" ? "Claude Sonnet 4" : selectedAI} · Active
         </div>
-        <div style={{ width: 1, height: 20, background: "#1e293b" }} />
-        <div style={{ fontSize: 12, color: "#64748b" }}>
-          {profile.Name} {profile["Current Role"] ? `· ${profile["Current Role"]}` : ""} {profile["Target Market"] ? `→ ${profile["Target Market"]}` : ""}
+        <div className="w-px h-5 bg-white/10" />
+        <div className="text-sm font-medium text-slate-300">
+          {profile.Name} {profile["Current Role"] ? <span className="text-slate-500">· {profile["Current Role"]}</span> : ""} {profile["Target Market"] ? <span className="text-sky-400">→ {profile["Target Market"]}</span> : ""}
         </div>
-      </div>
+      </header>
 
       {/* Nav */}
-      <div style={{ display: "flex", gap: 4, padding: "10px 28px 0", borderBottom: "1px solid #0f172a", overflowX: "auto" }}>
+      <div className="flex gap-2 px-8 pt-6 pb-0 overflow-x-auto">
         {TABS.map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: "8px 8px 0 0", border: "none", cursor: "pointer", fontSize: 13, fontWeight: tab === t.id ? 600 : 400, background: tab === t.id ? "#0f172a" : "transparent", color: tab === t.id ? "#38bdf8" : "#64748b", borderBottom: tab === t.id ? "2px solid #38bdf8" : "2px solid transparent", transition: "all 0.2s", fontFamily: "inherit", whiteSpace: "nowrap" }}
+            className={`flex items-center gap-2 px-5 py-3 rounded-t-xl text-sm font-medium transition-all duration-300 ease-out border-b-2 ${
+              tab === t.id
+                ? "bg-white/10 text-sky-400 border-sky-400 backdrop-blur-md"
+                : "bg-transparent text-slate-400 border-transparent hover:bg-white/5 hover:text-slate-200"
+            }`}
           >
             <span>{t.icon}</span> {t.label}
-            {t.count ? <span style={{ background: "#38bdf8", color: "#020817", fontSize: 10, fontWeight: 700, borderRadius: 10, padding: "0 6px", lineHeight: "16px" }}>{t.count}</span> : null}
+            {t.count ? (
+              <span className="bg-sky-500/20 text-sky-300 text-[10px] font-bold rounded-full px-2 py-0.5 border border-sky-500/30">
+                {t.count}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -406,54 +422,57 @@ export default function JobPilot() {
           ];
 
           return (
-            <div style={{ animation: "slideIn 0.3s ease" }}>
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               {/* Greeting */}
-              <div style={{ marginBottom: 28, display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+              <div className="mb-8 flex items-end justify-between">
                 <div>
-                  <div style={{ fontSize: 12, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>Good afternoon</div>
-                  <h2 style={{ fontSize: 26, fontWeight: 700, margin: 0, letterSpacing: "-0.03em" }}>{profile.Name} <span style={{ color: "#38bdf8", fontWeight: 400, fontSize: 20 }}>— here's your search</span></h2>
+                  <div className="text-xs text-sky-400 font-bold tracking-widest uppercase mb-1">Good afternoon</div>
+                  <h2 className="text-3xl font-bold m-0 tracking-tight text-white">{profile.Name} <span className="text-slate-400 font-normal text-2xl">— here's your search</span></h2>
                 </div>
                 <button
                   onClick={() => setTab("discover")}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 9, border: "none", background: "linear-gradient(135deg, #0ea5e9, #818cf8)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-md text-white font-semibold text-sm cursor-pointer transition-all shadow-[0_4px_24px_rgba(0,0,0,0.2)] hover:shadow-[0_4px_24px_rgba(56,189,248,0.2)]"
                 >
-                  <span>◎</span> New Search
+                  <span className="text-sky-400">◎</span> New Search
                 </button>
               </div>
 
               {/* KPI row */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+              <div className="grid grid-cols-4 gap-4 mb-6">
                 {kpis.map(k => (
-                  <div key={k.label} style={{ background: "#0a1628", border: `1px solid ${k.color}25`, borderRadius: 14, padding: "20px 20px 16px" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                      <span style={{ fontSize: 11, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>{k.label}</span>
-                      <span style={{ fontSize: 14, color: k.color, opacity: 0.7 }}>{k.icon}</span>
+                  <div key={k.label} className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-lg relative overflow-hidden group hover:border-white/20 transition-all">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/5 to-transparent rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-sky-500/10 transition-colors" />
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-slate-400 font-bold tracking-widest uppercase">{k.label}</span>
+                      <span className="text-lg opacity-80" style={{ color: k.color }}>{k.icon}</span>
                     </div>
-                    <div style={{ fontSize: 36, fontWeight: 700, color: k.color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>{k.value}</div>
-                    <div style={{ fontSize: 11, color: "#334155", marginTop: 6 }}>{k.sub}</div>
+                    <div className="text-4xl font-bold font-mono leading-none tracking-tighter" style={{ color: k.color }}>{k.value}</div>
+                    <div className="text-xs text-slate-500 mt-2 font-medium">{k.sub}</div>
                   </div>
                 ))}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+              <div className="grid grid-cols-2 gap-5 mb-5">
                 {/* Pipeline funnel */}
-                <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 14, padding: 22 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#94a3b8", marginBottom: 18 }}>Application Pipeline</div>
-                  <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
+                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
+                  <div className="text-sm font-bold text-slate-300 mb-5 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-sky-400" /> Application Pipeline
+                  </div>
+                  <div className="flex flex-col gap-3">
                     {pipeline.map((stage, i) => (
-                      <div key={stage.label}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: stage.color, flexShrink: 0 }} />
-                            <span style={{ fontSize: 12, color: "#94a3b8" }}>{stage.label}</span>
+                      <div key={stage.label} className="group">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ background: stage.color }} />
+                            <span className="text-xs font-medium text-slate-400 group-hover:text-slate-200 transition-colors">{stage.label}</span>
                           </div>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: stage.color, fontFamily: "'JetBrains Mono', monospace" }}>{stage.count}</span>
+                          <span className="text-xs font-bold font-mono" style={{ color: stage.color }}>{stage.count}</span>
                         </div>
-                        <div style={{ height: 6, background: "#0f172a", borderRadius: 3, overflow: "hidden" }}>
-                          <div style={{ width: `${(stage.count / maxCount) * 100}%`, height: "100%", background: stage.color, borderRadius: 3, opacity: 0.85, transition: "width 0.8s ease" }} />
+                        <div className="h-1.5 bg-slate-900/50 rounded-full overflow-hidden border border-white/5">
+                          <div className="h-full rounded-full opacity-90 transition-all duration-1000 ease-out" style={{ width: `${(stage.count / maxCount) * 100}%`, background: stage.color, boxShadow: `0 0 10px ${stage.color}80` }} />
                         </div>
                         {i < pipeline.length - 1 && stage.count > 0 && pipeline[i + 1].count > 0 && (
-                          <div style={{ fontSize: 10, color: "#334155", marginTop: 2, textAlign: "right" as const, fontFamily: "monospace" }}>
+                          <div className="text-[10px] text-slate-500 mt-1 text-right font-mono font-medium">
                             {Math.round((pipeline[i + 1].count / stage.count) * 100)}% → next
                           </div>
                         )}
@@ -463,75 +482,79 @@ export default function JobPilot() {
                 </div>
 
                 {/* Source breakdown + top matches */}
-                <div style={{ display: "flex", flexDirection: "column" as const, gap: 16 }}>
+                <div className="flex flex-col gap-4">
                   {/* Source breakdown */}
-                  <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 14, padding: 22 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#94a3b8", marginBottom: 14 }}>Source Breakdown</div>
-                    <div style={{ display: "flex", flexDirection: "column" as const, gap: 10 }}>
+                  <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
+                    <div className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-indigo-400" /> Source Breakdown
+                    </div>
+                    <div className="flex flex-col gap-3">
                       {sourceList.map(([src, cnt]) => (
-                        <div key={src} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <span style={{ fontSize: 11, color: "#64748b", width: 80, flexShrink: 0 }}>{src}</span>
-                          <div style={{ flex: 1, height: 5, background: "#0f172a", borderRadius: 3, overflow: "hidden" }}>
-                            <div style={{ width: `${(cnt / maxSource) * 100}%`, height: "100%", background: "linear-gradient(90deg, #0ea5e9, #818cf8)", borderRadius: 3, transition: "width 0.6s ease" }} />
+                        <div key={src} className="flex items-center gap-3">
+                          <span className="text-xs font-medium text-slate-400 w-20 shrink-0 truncate">{src}</span>
+                          <div className="flex-1 h-1.5 bg-slate-900/50 rounded-full overflow-hidden border border-white/5">
+                            <div className="h-full bg-gradient-to-r from-sky-400 to-indigo-500 rounded-full transition-all duration-700 shadow-[0_0_8px_rgba(56,189,248,0.5)]" style={{ width: `${(cnt / maxSource) * 100}%` }} />
                           </div>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: "#38bdf8", fontFamily: "monospace", width: 16, textAlign: "right" as const }}>{cnt}</span>
+                          <span className="text-xs font-bold text-sky-400 font-mono w-5 text-right">{cnt}</span>
                         </div>
                       ))}
                     </div>
                   </div>
 
                   {/* Score distribution mini */}
-                  <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 14, padding: 22 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#94a3b8", marginBottom: 14 }}>Score Distribution</div>
-                    <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 60 }}>
+                  <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
+                    <div className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400" /> Score Distribution
+                    </div>
+                    <div className="flex items-end gap-1.5 h-16">
                       {[...trackerJobs].sort((a, b) => (b.score || 0) - (a.score || 0)).map(j => {
                         const barColor = (j.score || 0) >= 90 ? "#10b981" : (j.score || 0) >= 80 ? "#f59e0b" : "#ef4444";
                         const barH = Math.round(((j.score || 0) / 100) * 44);
                         return (
-                          <div key={j.id} style={{ flex: 1, display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3 }}>
-                            <div style={{ width: "100%", height: barH, background: barColor, borderRadius: "3px 3px 0 0", opacity: 0.85 }} title={`${j.company}: ${(j.score || 0)}`} />
-                            <div style={{ fontSize: 9, color: "#475569", fontFamily: "monospace" }}>{(j.score || 0)}</div>
+                          <div key={j.id} className="flex-1 flex flex-col items-center gap-1 group">
+                            <div className="w-full rounded-t-sm opacity-80 group-hover:opacity-100 transition-opacity relative" style={{ height: barH, background: barColor, boxShadow: `0 0 8px ${barColor}40` }}>
+                              <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                                {j.company}: {(j.score || 0)}
+                              </div>
+                            </div>
+                            <div className="text-[9px] text-slate-500 font-mono">{(j.score || 0)}</div>
                           </div>
                         );
                       })}
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
-                      {[["#10b981", `${[...trackerJobs].filter(j => (j.score || 0) >= 90).length} excellent`], ["#f59e0b", `${[...trackerJobs].filter(j => (j.score || 0) >= 80 && (j.score || 0) < 90).length} good`], ["#ef4444", `${[...trackerJobs].filter(j => (j.score || 0) < 80).length} weak`]].map(([color, label]) => (
-                        <div key={label as string} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                          <div style={{ width: 8, height: 8, borderRadius: 2, background: color as string }} />
-                          <span style={{ fontSize: 10, color: "#475569" }}>{label}</span>
-                        </div>
-                      ))}
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Top Matches */}
-              <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 14, padding: 22 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#94a3b8" }}>Top Matches</div>
-                  <button onClick={() => setTab("results")} style={{ fontSize: 11, color: "#38bdf8", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>View all →</button>
+              <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                    <span className="text-amber-400">★</span> Top Matches
+                  </div>
+                  <button onClick={() => setTab("results")} className="text-xs font-medium text-sky-400 hover:text-sky-300 transition-colors">View all →</button>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column" as const, gap: 10 }}>
+                <div className="flex flex-col gap-3">
                   {topMatches.map(job => (
                     <div
                       key={job.id}
                       onClick={() => { setSelectedJob(job); setFilterStatus("All"); setTab("results"); }}
-                      style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", background: "#070d1a", borderRadius: 10, border: "1px solid #1e293b", cursor: "pointer", transition: "border-color 0.2s" }}
-                      onMouseEnter={e => (e.currentTarget.style.borderColor = "#0369a1")}
-                      onMouseLeave={e => (e.currentTarget.style.borderColor = "#1e293b")}
+                      className="flex items-center gap-4 p-3.5 bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 rounded-xl cursor-pointer transition-all duration-200 group"
                     >
-                      <div style={{ width: 36, height: 36, borderRadius: 8, background: `${job.color}20`, border: `1px solid ${job.color}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: job.color, flexShrink: 0, fontFamily: "monospace" }}>{job.logo}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{job.title}</div>
-                        <div style={{ fontSize: 11, color: "#64748b" }}>{job.company} · {job.location}</div>
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold font-mono shrink-0 shadow-inner" style={{ background: `${job.color}15`, border: `1px solid ${job.color}30`, color: job.color }}>
+                        {job.logo}
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-slate-200 mb-0.5 truncate group-hover:text-sky-300 transition-colors">{job.title}</div>
+                        <div className="text-xs text-slate-400 truncate">{job.company} · {job.location}</div>
+                      </div>
+                      <div className="flex items-center gap-4">
                         <Badge status={job.status} />
-                        <div style={{ textAlign: "right" as const }}>
-                          <div style={{ fontSize: 18, fontWeight: 700, color: (job.score || 0) >= 90 ? "#10b981" : (job.score || 0) >= 80 ? "#f59e0b" : "#ef4444", fontFamily: "monospace", lineHeight: 1 }}>{(job.score || 0)}</div>
-                          <div style={{ fontSize: 9, color: "#334155", marginTop: 2 }}>score</div>
+                        <div className="text-right">
+                          <div className="text-xl font-bold font-mono leading-none tracking-tighter" style={{ color: (job.score || 0) >= 90 ? "#10b981" : (job.score || 0) >= 80 ? "#f59e0b" : "#ef4444" }}>
+                            {(job.score || 0)}
+                          </div>
+                          <div className="text-[9px] text-slate-500 mt-1 uppercase tracking-wider font-bold">score</div>
                         </div>
                       </div>
                     </div>
@@ -544,64 +567,64 @@ export default function JobPilot() {
 
         {/* ─── DISCOVER ─── */}
         {tab === "discover" && (
-          <div style={{ animation: "slideIn 0.3s ease" }}>
-            <div style={{ marginBottom: 28 }}>
-              <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 6px", letterSpacing: "-0.03em" }}>Job Discovery <span style={{ color: "#38bdf8" }}>Agent</span></h2>
-              <p style={{ color: "#64748b", fontSize: 14, margin: "0 0 10px" }}>Hybrid pipeline: <b>API feeds</b> (instant, reliable) + <b>Browser</b> (deep scrape) + <b>AI Discovery</b> (web search + extraction). All links validated before saving.</p>
-              <div style={{ display: "flex", gap: 14, flexWrap: "wrap" as const }}>
-                {[["#10b981", "API", "Direct feed — fast & reliable"], ["#f59e0b", "Browser", "Playwright scraper — may hit blocks"], ["#818cf8", "AI", "AI web search — always finds jobs"]].map(([color, label, desc]) => (
-                  <div key={label as string} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#64748b" }}>
-                    <span style={{ background: `${color as string}22`, color: color as string, borderRadius: 8, padding: "1px 7px", fontWeight: 700, fontSize: 10 }}>{label}</span>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold m-0 mb-2 tracking-tight text-white">Job Discovery <span className="text-sky-400 font-normal">Agent</span></h2>
+              <p className="text-slate-400 text-sm m-0 mb-4">Hybrid pipeline: <b className="text-slate-300">API feeds</b> (instant, reliable) + <b className="text-slate-300">Browser</b> (deep scrape) + <b className="text-slate-300">AI Discovery</b> (web search + extraction). All links validated before saving.</p>
+              <div className="flex gap-4 flex-wrap">
+                {[["emerald-400", "API", "Direct feed — fast & reliable"], ["amber-400", "Browser", "Playwright scraper — may hit blocks"], ["indigo-400", "AI", "AI web search — always finds jobs"]].map(([color, label, desc]) => (
+                  <div key={label as string} className="flex items-center gap-2 text-xs text-slate-400">
+                    <span className={`bg-${color}/10 text-${color} rounded-md px-2 py-0.5 font-bold text-[10px]`}>{label}</span>
                     <span>{desc}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div className="grid grid-cols-2 gap-4 mb-4">
               {[
                 { label: "Target Role", value: role, setter: setRole, placeholder: "e.g. GenAI Architect" },
                 { label: "Region / Market", value: region, setter: setRegion, placeholder: "e.g. Gulf / GCC" },
               ].map(f => (
-                <div key={f.label} style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 10, padding: "14px 18px" }}>
-                  <label style={{ fontSize: 11, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>{f.label}</label>
+                <div key={f.label} className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-lg focus-within:border-sky-500/50 transition-colors group">
+                  <label className="text-xs text-slate-400 font-bold tracking-widest uppercase block group-focus-within:text-sky-400 transition-colors">{f.label}</label>
                   <input
                     value={f.value}
                     onChange={e => f.setter(e.target.value)}
                     placeholder={f.placeholder}
-                    style={{ display: "block", width: "100%", background: "transparent", border: "none", color: "#e2e8f0", fontSize: 15, fontWeight: 500, marginTop: 6, fontFamily: "inherit" }}
+                    className="w-full bg-transparent border-none text-slate-100 text-base font-medium mt-1.5 focus:outline-none placeholder:text-slate-600"
                   />
                 </div>
               ))}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
-              <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 10, padding: "12px 16px" }}>
-                <label style={{ fontSize: 11, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Company Filter</label>
-                <input value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} placeholder="e.g. G42, ADNOC…" style={{ display: "block", width: "100%", background: "transparent", border: "none", color: "#94a3b8", fontSize: 13, marginTop: 4, fontFamily: "inherit" }} />
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-xl p-3.5 shadow-lg focus-within:border-sky-500/50 transition-colors group">
+                <label className="text-[10px] text-slate-400 font-bold tracking-widest uppercase block group-focus-within:text-sky-400 transition-colors">Company Filter</label>
+                <input value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} placeholder="e.g. G42, ADNOC…" className="w-full bg-transparent border-none text-slate-300 text-sm mt-1 focus:outline-none placeholder:text-slate-600" />
               </div>
-              <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 10, padding: "12px 16px" }}>
-                <label style={{ fontSize: 11, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Site Filter</label>
-                <input value={siteFilter} onChange={e => setSiteFilter(e.target.value)} placeholder="e.g. greenhouse.io" style={{ display: "block", width: "100%", background: "transparent", border: "none", color: "#94a3b8", fontSize: 13, marginTop: 4, fontFamily: "inherit" }} />
+              <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-xl p-3.5 shadow-lg focus-within:border-sky-500/50 transition-colors group">
+                <label className="text-[10px] text-slate-400 font-bold tracking-widest uppercase block group-focus-within:text-sky-400 transition-colors">Site Filter</label>
+                <input value={siteFilter} onChange={e => setSiteFilter(e.target.value)} placeholder="e.g. greenhouse.io" className="w-full bg-transparent border-none text-slate-300 text-sm mt-1 focus:outline-none placeholder:text-slate-600" />
               </div>
-              <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 10, padding: "12px 16px" }}>
-                <label style={{ fontSize: 11, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>Date Posted</label>
-                <select value={dateFilter} onChange={e => setDateFilter(e.target.value)} style={{ display: "block", width: "100%", background: "transparent", border: "none", color: "#94a3b8", fontSize: 13, marginTop: 4, fontFamily: "inherit" }}>
-                  {["Last 24 hours", "Last 7 days", "Last 14 days", "Last 30 days"].map(o => <option key={o} value={o} style={{ background: "#0a1628" }}>{o}</option>)}
+              <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-xl p-3.5 shadow-lg focus-within:border-sky-500/50 transition-colors group">
+                <label className="text-[10px] text-slate-400 font-bold tracking-widest uppercase block group-focus-within:text-sky-400 transition-colors">Date Posted</label>
+                <select value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="w-full bg-transparent border-none text-slate-300 text-sm mt-1 focus:outline-none cursor-pointer">
+                  {["Last 24 hours", "Last 7 days", "Last 14 days", "Last 30 days"].map(o => <option key={o} value={o} className="bg-slate-900">{o}</option>)}
                 </select>
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap" as const }}>
+            <div className="flex gap-2.5 mb-8 flex-wrap">
               {[
-                { id: "LinkedIn",     label: "LinkedIn",     badge: "API",     color: "#0A66C2" },
-                { id: "RemoteOK",     label: "RemoteOK",     badge: "API",     color: "#00b16a" },
-                { id: "Arbeitnow",    label: "Arbeitnow",    badge: "API",     color: "#6d28d9" },
+                { id: "LinkedIn",     label: "LinkedIn",     badge: "API",     color: "#0ea5e9" },
+                { id: "RemoteOK",     label: "RemoteOK",     badge: "API",     color: "#10b981" },
+                { id: "Arbeitnow",    label: "Arbeitnow",    badge: "API",     color: "#8b5cf6" },
                 { id: "JSearch",      label: "JSearch",      badge: "API",     color: "#f59e0b" },
-                { id: "Indeed",       label: "Indeed",       badge: "Browser", color: "#003a9b" },
-                { id: "Naukri",       label: "Naukri",       badge: "Browser", color: "#ff7555" },
-                { id: "Hirect",       label: "Hirect",       badge: "Browser", color: "#6c47ff" },
-                { id: "InstaHyre",    label: "InstaHyre",    badge: "Browser", color: "#00b386" },
+                { id: "Indeed",       label: "Indeed",       badge: "Browser", color: "#3b82f6" },
+                { id: "Naukri",       label: "Naukri",       badge: "Browser", color: "#f97316" },
+                { id: "Hirect",       label: "Hirect",       badge: "Browser", color: "#8b5cf6" },
+                { id: "InstaHyre",    label: "InstaHyre",    badge: "Browser", color: "#10b981" },
                 { id: "AI Discovery", label: "AI Discovery", badge: "AI",      color: "#818cf8" },
               ].map(b => {
                 const active = activeBoards.includes(b.id);
@@ -610,11 +633,12 @@ export default function JobPilot() {
                   <div
                     key={b.id}
                     onClick={() => toggleBoard(b.id)}
-                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 20, background: active ? `${b.color}18` : "#0f172a", border: `1px solid ${active ? b.color : "#1e293b"}`, fontSize: 12, color: active ? b.color : "#475569", cursor: "pointer", transition: "all 0.2s", userSelect: "none" as const }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-all duration-200 select-none border ${active ? 'backdrop-blur-md shadow-[0_0_10px_rgba(255,255,255,0.05)] hover:brightness-110' : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10'}`}
+                    style={active ? { borderColor: b.color, background: `${b.color}15`, color: b.color } : {}}
                   >
                     <span>{active ? "✓" : "○"}</span>
                     <span>{b.label}</span>
-                    <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 8, background: `${badgeColor}22`, color: badgeColor, fontWeight: 700, letterSpacing: "0.04em" }}>{b.badge}</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold tracking-wider" style={{ background: `${badgeColor}22`, color: badgeColor }}>{b.badge}</span>
                   </div>
                 );
               })}
@@ -623,16 +647,16 @@ export default function JobPilot() {
             <button
               onClick={runSearch}
               disabled={searching}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 32px", borderRadius: 10, border: "none", cursor: searching ? "not-allowed" : "pointer", background: searching ? "#1e293b" : "linear-gradient(135deg, #0ea5e9, #818cf8)", color: "#fff", fontWeight: 700, fontSize: 15, fontFamily: "inherit", animation: !searching ? "glow 3s infinite" : "none", transition: "all 0.3s" }}
+              className={`flex items-center gap-2.5 px-8 py-3.5 rounded-xl border-none cursor-${searching ? "not-allowed" : "pointer"} font-bold text-sm text-white font-sans transition-all duration-300 ${searching ? "bg-slate-800 text-slate-400" : "bg-gradient-to-br from-sky-400 to-indigo-500 shadow-[0_0_20px_rgba(56,189,248,0.4)] hover:shadow-[0_0_30px_rgba(56,189,248,0.6)] hover:-translate-y-0.5"}`}
             >
               {searching
-                ? <><span style={{ width: 16, height: 16, border: "2px solid #38bdf8", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} /> Searching...</>
-                : <><span>◎</span> Launch Discovery Agent</>
+                ? <><span className="w-4 h-4 border-2 border-sky-400 border-t-transparent rounded-full inline-block animate-spin" /> Searching...</>
+                : <><span className="text-sky-200">◎</span> Launch Discovery Agent</>
               }
             </button>
 
-            <div style={{ marginTop: 24 }}>
-              <div style={{ fontSize: 12, color: "#475569", marginBottom: 8, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" as const }}>Agent Log</div>
+            <div className="mt-8">
+              <div className="text-xs text-slate-400 mb-2 font-bold tracking-widest uppercase">Agent Log</div>
               <AgentLog logs={logs} />
             </div>
           </div>
@@ -640,24 +664,24 @@ export default function JobPilot() {
 
         {/* ─── RESULTS ─── */}
         {tab === "results" && (
-          <div style={{ animation: "slideIn 0.3s ease" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20, flexWrap: "wrap" as const }}>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center gap-4 mb-6 flex-wrap">
               <div>
-                <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 4px", letterSpacing: "-0.03em" }}>Ranked <span style={{ color: "#38bdf8" }}>Results</span></h2>
-                <p style={{ color: "#64748b", fontSize: 13, margin: 0 }}>
+                <h2 className="text-3xl font-bold m-0 mb-1 tracking-tight text-white">Ranked <span className="text-sky-400 font-normal">Results</span></h2>
+                <p className="text-slate-400 text-sm m-0">
                   {jobs.length} job{jobs.length !== 1 ? "s" : ""} · sorted by AI relevance score
-                  <span style={{ marginLeft: 10, padding: "1px 8px", borderRadius: 10, background: "rgba(16,185,129,0.12)", color: "#34d399", fontSize: 11, fontWeight: 600 }}>
-                    💾 Saved — survives refresh
+                  <span className="ml-3 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-wider">
+                    💾 Saved
                   </span>
                 </p>
               </div>
-              <div style={{ flex: 1 }} />
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+              <div className="flex-1" />
+              <div className="flex gap-2 flex-wrap">
                 {["All", ...Object.keys(STATUS_COLORS)].map(s => (
                   <button
                     key={s}
                     onClick={() => setFilterStatus(s)}
-                    style={{ padding: "5px 12px", borderRadius: 20, border: "1px solid", borderColor: filterStatus === s ? "#38bdf8" : "#1e293b", background: filterStatus === s ? "rgba(56,189,248,0.1)" : "transparent", color: filterStatus === s ? "#38bdf8" : "#64748b", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+                    className={`px-3 py-1.5 rounded-full border text-xs cursor-pointer font-medium transition-all duration-200 ${filterStatus === s ? "border-sky-400 bg-sky-500/10 text-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.2)]" : "border-white/10 bg-white/5 text-slate-400 hover:bg-white/10"}`}
                   >
                     {s}
                   </button>
@@ -677,7 +701,7 @@ export default function JobPilot() {
                       }
                     } 
                   }}
-                  style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #991b1b", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
+                  className="px-3.5 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-xs cursor-pointer flex items-center gap-2 hover:bg-red-500/20 transition-colors"
                 >
                   🗑 Clear All
                 </button>
@@ -685,89 +709,92 @@ export default function JobPilot() {
             </div>
 
             {jobs.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 60, color: "#334155" }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>◎</div>
-                <div style={{ marginBottom: 8 }}>Run the Discovery Agent first</div>
-                <button onClick={() => setTab("discover")} style={{ marginTop: 8, padding: "8px 20px", borderRadius: 8, border: "1px solid #1e293b", background: "transparent", color: "#38bdf8", cursor: "pointer", fontFamily: "inherit" }}>→ Go to Discover</button>
+              <div className="text-center p-16 text-slate-500 bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg">
+                <div className="text-5xl mb-4 text-sky-500/30">◎</div>
+                <div className="mb-4 text-sm">Run the Discovery Agent first</div>
+                <button onClick={() => setTab("discover")} className="px-5 py-2 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-400 cursor-pointer text-sm font-medium hover:bg-sky-500/20 transition-colors">→ Go to Discover</button>
               </div>
             ) : (
-              <div style={{ display: "flex", gap: 16 }}>
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+              <div className="flex gap-5 items-start">
+                <div className="flex-1 flex flex-col gap-3 min-w-0">
                   {filteredJobs.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: 40, color: "#334155", background: "#0a1628", borderRadius: 12, border: "1px solid #1e293b" }}>
+                    <div className="text-center p-10 text-slate-500 bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg">
                       No jobs with status "{filterStatus}"
                     </div>
                   ) : filteredJobs.map(job => (
                     <div
                       key={job.id}
                       onClick={() => setSelectedJob(job)}
-                      style={{ background: selectedJob?.id === job.id ? "#0a1628" : "#070d1a", border: `1px solid ${selectedJob?.id === job.id ? "#0369a1" : "#1e293b"}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer", transition: "all 0.2s", animation: "slideIn 0.3s ease" }}
+                      className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 ${selectedJob?.id === job.id ? "bg-slate-900/60 border border-sky-500/50 shadow-[0_0_20px_rgba(56,189,248,0.15)]" : "bg-slate-950/40 border border-white/5 hover:border-white/20 hover:bg-white/5 shadow-lg backdrop-blur-xl"}`}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ width: 38, height: 38, borderRadius: 9, background: `${job.color}20`, border: `1px solid ${job.color}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: job.color, flexShrink: 0, fontFamily: "monospace" }}>{job.logo}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const }}>
-                            <span style={{ fontWeight: 600, fontSize: 14 }}>{job.title}</span>
-                            {(job.score || 0) >= 90 && <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 10, background: "rgba(16,185,129,0.15)", color: "#34d399", border: "1px solid #047857", fontWeight: 600 }}>★ STRONG MATCH</span>}
-                            <Badge status={job.status} />
-                          </div>
-                          <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{job.company} · {job.location} · {job.posted}</div>
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold font-mono shrink-0 shadow-inner" style={{ background: `${job.color}15`, border: `1px solid ${job.color}30`, color: job.color }}>{job.logo}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap mb-1">
+                          <span className={`font-bold text-base transition-colors ${selectedJob?.id === job.id ? 'text-sky-300' : 'text-slate-200'}`}>{job.title}</span>
+                          {(job.score || 0) >= 90 && <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.2)]">★ STRONG MATCH</span>}
+                          <Badge status={job.status} />
                         </div>
-                        <div style={{ minWidth: 120 }}>
-                          <ScoreBar score={job.score || 0} />
-                          <div style={{ fontSize: 11, color: "#475569", marginTop: 2, textAlign: "right" as const }}>{job.salary}</div>
-                        </div>
-                        <div style={{ fontSize: 11, color: "#475569", background: "#0f172a", padding: "3px 9px", borderRadius: 6, whiteSpace: "nowrap" as const }}>{job.source}</div>
-                          <button
-                            onClick={async e => { 
-                              e.stopPropagation(); 
-                              const ok = await deleteJob(job.id);
-                              if (ok) {
-                                setJobs(prev => prev.filter(jj => jj.id !== job.id)); 
-                                if (selectedJob?.id === job.id) setSelectedJob(null); 
-                                addLog("info", "DELETE", `Job #${job.id} removed.`);
-                              } else {
-                                addLog("error", "ERROR", `Failed to delete job #${job.id}.`);
-                              }
-                            }}
-                            title="Remove"
-                            style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", fontSize: 15, padding: "4px 6px", borderRadius: 6, lineHeight: 1, flexShrink: 0, transition: "color 0.15s" }}
-                            onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
-                            onMouseLeave={e => (e.currentTarget.style.color = "#475569")}
-                          >🗑</button>
+                        <div className="text-xs text-slate-400 truncate">{job.company} · {job.location} · {job.posted}</div>
                       </div>
+                      <div className="min-w-[120px]">
+                        <ScoreBar score={job.score || 0} />
+                        <div className="text-[10px] text-slate-500 mt-1.5 text-right font-medium">{job.salary}</div>
+                      </div>
+                      <div className="text-[10px] text-slate-400 bg-slate-900/50 border border-white/5 px-2.5 py-1 rounded-md whitespace-nowrap font-medium">{job.source}</div>
+                      <button
+                        onClick={async e => { 
+                          e.stopPropagation(); 
+                          const ok = await deleteJob(job.id);
+                          if (ok) {
+                            setJobs(prev => prev.filter(jj => jj.id !== job.id)); 
+                            if (selectedJob?.id === job.id) setSelectedJob(null); 
+                            addLog("info", "DELETE", `Job #${job.id} removed.`);
+                          } else {
+                            addLog("error", "ERROR", `Failed to delete job #${job.id}.`);
+                          }
+                        }}
+                        title="Remove"
+                        className="bg-transparent border-none text-slate-600 hover:text-red-400 cursor-pointer text-lg p-1.5 rounded-md leading-none shrink-0 transition-colors hover:bg-red-500/10"
+                      >🗑</button>
                     </div>
                   ))}
                 </div>
 
                 {selectedJob && (
-                  <div style={{ width: 300, flexShrink: 0, background: "#0a1628", border: "1px solid #1e293b", borderRadius: 12, padding: 20, height: "fit-content", animation: "slideIn 0.2s ease" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: 16 }}>
+                  <div className="w-[340px] shrink-0 bg-slate-950/60 backdrop-blur-2xl border border-white/10 rounded-2xl p-6 h-fit shadow-2xl sticky top-[100px] animate-in slide-in-from-right-4 duration-300">
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-2xl pointer-events-none" />
+                    <div className="flex justify-between items-start mb-5 relative z-10">
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 15 }}>{selectedJob.title}</div>
-                        <div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>{selectedJob.company}</div>
+                        <div className="font-bold text-lg text-slate-100 leading-tight mb-1">{selectedJob.title}</div>
+                        <div className="text-slate-400 text-xs font-medium">{selectedJob.company}</div>
                       </div>
-                      <button onClick={() => setSelectedJob(null)} style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", fontSize: 18, padding: 0, lineHeight: 1 }}>×</button>
+                      <button onClick={() => setSelectedJob(null)} className="bg-transparent border-none text-slate-500 hover:text-slate-300 cursor-pointer text-2xl p-0 leading-none transition-colors">×</button>
                     </div>
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 11, color: "#475569", marginBottom: 6, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>AI Match Analysis</div>
-                      <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.6, background: "#070d1a", borderRadius: 8, padding: 12, borderLeft: "3px solid #818cf8" }}>{selectedJob.match}</div>
+                    <div className="mb-5 relative z-10">
+                      <div className="text-[10px] text-slate-400 mb-2 font-bold uppercase tracking-widest">AI Match Analysis</div>
+                      <div className="text-xs text-slate-300 leading-relaxed bg-black/20 rounded-xl p-3.5 border-l-2 border-l-sky-400 border border-white/5 shadow-inner">{selectedJob.match}</div>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+                    <div className="grid grid-cols-2 gap-2.5 mb-5 relative z-10">
                       {[["Score", `${selectedJob.score}/100`], ["Location", selectedJob.location], ["Salary", selectedJob.salary], ["Source", selectedJob.source]].map(([k, v]) => (
-                        <div key={k} style={{ background: "#070d1a", borderRadius: 8, padding: "8px 10px" }}>
-                          <div style={{ fontSize: 10, color: "#475569", marginBottom: 2, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>{k}</div>
-                          <div style={{ fontSize: 13, fontWeight: 500 }}>{v}</div>
+                        <div key={k} className="bg-white/5 rounded-xl p-2.5 border border-white/5">
+                          <div className="text-[9px] text-slate-500 mb-1 uppercase tracking-widest font-bold">{k}</div>
+                          <div className="text-xs font-semibold text-slate-200 truncate">{v}</div>
                         </div>
                       ))}
                     </div>
-                    <div style={{ fontSize: 11, color: "#475569", marginBottom: 8, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>Move to</div>
-                    <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, marginBottom: 14 }}>
+                    <div className="text-[10px] text-slate-400 mb-2.5 font-bold uppercase tracking-widest relative z-10">Move to</div>
+                    <div className="flex flex-wrap gap-2 mb-6 relative z-10">
                       {Object.keys(STATUS_COLORS).map(s => (
                         <button
                           key={s}
                           onClick={() => updateStatus(selectedJob.id, s)}
-                          style={{ padding: "4px 10px", borderRadius: 12, border: `1px solid ${selectedJob.status === s ? STATUS_COLORS[s].border : "#1e293b"}`, background: selectedJob.status === s ? STATUS_COLORS[s].bg : "transparent", color: selectedJob.status === s ? STATUS_COLORS[s].text : "#64748b", fontSize: 11, cursor: "pointer", fontFamily: "inherit", fontWeight: selectedJob.status === s ? 600 : 400 }}
+                          className="px-3 py-1.5 rounded-full text-[10px] font-bold cursor-pointer transition-all duration-200"
+                          style={{
+                            border: `1px solid ${selectedJob.status === s ? STATUS_COLORS[s].border : "rgba(255,255,255,0.1)"}`,
+                            background: selectedJob.status === s ? STATUS_COLORS[s].bg : "rgba(255,255,255,0.05)",
+                            color: selectedJob.status === s ? STATUS_COLORS[s].text : "#94a3b8",
+                            boxShadow: selectedJob.status === s ? `0 0 10px ${STATUS_COLORS[s].border}80` : "none"
+                          }}
                         >
                           {s}
                         </button>
@@ -779,7 +806,7 @@ export default function JobPilot() {
                         setTargetUrl(selectedJob.url || "");
                         setTab("autofill");
                       }}
-                      style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #0ea5e9, #818cf8)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+                      className="w-full p-3.5 rounded-xl border-none bg-gradient-to-br from-sky-400 to-indigo-500 text-white font-bold text-sm cursor-pointer shadow-[0_4px_20px_rgba(56,189,248,0.3)] hover:shadow-[0_4px_25px_rgba(56,189,248,0.5)] hover:-translate-y-0.5 transition-all relative z-10"
                     >
                       ✦ Auto-Fill Application
                     </button>
@@ -792,12 +819,12 @@ export default function JobPilot() {
 
         {/* ─── TRACKER ─── */}
         {tab === "tracker" && (
-          <div style={{ animation: "slideIn 0.3s ease" }}>
-            <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
-              <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: "-0.03em" }}>Application <span style={{ color: "#38bdf8" }}>Tracker</span></h2>
-              <div style={{ flex: 1 }} />
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ fontSize: 12, color: "#475569" }}>{trackerJobs.length} total applications</div>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center mb-6">
+              <h2 className="text-3xl font-bold m-0 tracking-tight text-white">Application <span className="text-sky-400 font-normal">Tracker</span></h2>
+              <div className="flex-1" />
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-slate-400 font-medium">{trackerJobs.length} total applications</div>
                 {trackerJobs.length > 0 && (
                   <button
                     onClick={async () => { 
@@ -812,7 +839,7 @@ export default function JobPilot() {
                         }
                       } 
                     }}
-                    style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #991b1b", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
+                    className="px-3.5 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-xs cursor-pointer flex items-center gap-2 hover:bg-red-500/20 transition-colors font-medium"
                   >
                     🗑 Clear All
                   </button>
@@ -820,21 +847,21 @@ export default function JobPilot() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 28 }}>
+            <div className="grid grid-cols-6 gap-3 mb-8">
               {computedStats.map(s => (
-                <div key={s.label} style={{ background: "#0a1628", border: `1px solid ${s.color}30`, borderRadius: 12, padding: "16px 14px", textAlign: "center" as const }}>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: s.color, fontFamily: "monospace" }}>{s.value}</div>
-                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 4, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>{s.label}</div>
+                <div key={s.label} className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4 text-center shadow-lg hover:bg-white/5 transition-colors">
+                  <div className="text-3xl font-bold font-mono tracking-tight" style={{ color: s.color }}>{s.value}</div>
+                  <div className="text-[10px] text-slate-500 mt-1 uppercase tracking-widest font-bold">{s.label}</div>
                 </div>
               ))}
             </div>
 
-            <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 12, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" as const, fontSize: 13 }}>
+            <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-lg">
+              <table className="w-full border-collapse text-sm text-left">
                 <thead>
-                  <tr style={{ borderBottom: "1px solid #1e293b" }}>
+                  <tr className="border-b border-white/10 bg-white/5">
                     {["Role", "Company", "Location", "Score", "Status", "Posted", "Actions"].map(h => (
-                      <th key={h} style={{ padding: "10px 16px", textAlign: "left" as const, fontSize: 11, color: "#475569", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>{h}</th>
+                      <th key={h} className="py-3 px-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -842,27 +869,25 @@ export default function JobPilot() {
                   {trackerJobs.map((j, i) => (
                     <tr
                       key={j.id}
-                      style={{ borderBottom: i < trackerJobs.length - 1 ? "1px solid #0f172a" : "none", transition: "background 0.15s" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "#0d1f38")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      className={`transition-colors hover:bg-white/5 ${i < trackerJobs.length - 1 ? 'border-b border-white/5' : ''}`}
                     >
-                      <td style={{ padding: "12px 16px", fontWeight: 500 }}>{j.title}</td>
-                      <td style={{ padding: "12px 16px", color: "#94a3b8" }}>{j.company}</td>
-                      <td style={{ padding: "12px 16px", color: "#64748b" }}>{j.location}</td>
-                      <td style={{ padding: "12px 16px", width: 100 }}><ScoreBar score={(j.score || 0)} /></td>
-                      <td style={{ padding: "12px 16px" }}><Badge status={j.status} /></td>
-                      <td style={{ padding: "12px 16px", color: "#475569", fontFamily: "monospace", fontSize: 11 }}>{j.posted}</td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <div style={{ display: "flex", gap: 6 }}>
+                      <td className="py-3 px-4 font-bold text-slate-200">{j.title}</td>
+                      <td className="py-3 px-4 text-slate-400 font-medium">{j.company}</td>
+                      <td className="py-3 px-4 text-slate-500">{j.location}</td>
+                      <td className="py-3 px-4 w-[120px]"><ScoreBar score={(j.score || 0)} /></td>
+                      <td className="py-3 px-4"><Badge status={j.status} /></td>
+                      <td className="py-3 px-4 text-slate-500 font-mono text-xs">{j.posted}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex gap-2">
                           <button
                             onClick={() => { setSelectedJob(j); setFilterStatus("All"); setTab("results"); }}
-                            style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #1e293b", background: "transparent", color: "#38bdf8", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}
+                            className="px-3 py-1 rounded-md border border-white/10 bg-white/5 text-sky-400 text-[10px] font-bold tracking-wider uppercase cursor-pointer hover:bg-sky-500/10 hover:border-sky-500/30 transition-all"
                           >
                             View
                           </button>
                           <button
                             onClick={() => { setSelectedAutofillJob(j); setTargetUrl(j.url || ""); setTab("autofill"); }}
-                            style={{ padding: "4px 10px", borderRadius: 6, border: "none", background: "rgba(139,92,246,0.15)", color: "#a78bfa", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}
+                            className="px-3 py-1 rounded-md border border-transparent bg-indigo-500/20 text-indigo-400 text-[10px] font-bold tracking-wider uppercase cursor-pointer hover:bg-indigo-500/30 transition-all"
                           >
                             Fill
                           </button>
@@ -878,7 +903,7 @@ export default function JobPilot() {
                               }
                             }}
                             title="Remove from tracker"
-                            style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #991b1b", background: "rgba(239,68,68,0.08)", color: "#f87171", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}
+                            className="px-2 py-1 rounded-md border border-red-500/20 bg-red-500/10 text-red-400 text-sm cursor-pointer hover:bg-red-500/20 hover:border-red-500/30 transition-all"
                           >
                             🗑
                           </button>
@@ -894,97 +919,101 @@ export default function JobPilot() {
 
         {/* ─── AUTO-FILL ─── */}
         {tab === "autofill" && (
-          <div style={{ animation: "slideIn 0.3s ease" }}>
-            <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 6px", letterSpacing: "-0.03em" }}>Auto-Fill <span style={{ color: "#38bdf8" }}>Agent</span></h2>
-            <p style={{ color: "#64748b", fontSize: 14, margin: "0 0 24px" }}>Upload your CV. The AI maps your profile to application form fields via Playwright automation.</p>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-3xl font-bold m-0 mb-2 tracking-tight text-white">Auto-Fill <span className="text-sky-400 font-normal">Agent</span></h2>
+            <p className="text-slate-400 text-sm m-0 mb-8">Upload your CV. The AI maps your profile to application form fields via Playwright automation.</p>
 
             {selectedAutofillJob && (
-              <div style={{ background: "rgba(56,189,248,0.08)", border: "1px solid #0369a1", borderRadius: 10, padding: "12px 16px", marginBottom: 20, display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 7, background: `${selectedAutofillJob.color}20`, border: `1px solid ${selectedAutofillJob.color}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: selectedAutofillJob.color, fontFamily: "monospace" }}>{selectedAutofillJob.logo}</div>
+              <div className="bg-sky-500/10 border border-sky-500/30 rounded-2xl p-4 mb-6 flex items-center gap-4 shadow-[0_0_20px_rgba(56,189,248,0.1)] backdrop-blur-md">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold font-mono shadow-inner" style={{ background: `${selectedAutofillJob.color}20`, border: `1px solid ${selectedAutofillJob.color}40`, color: selectedAutofillJob.color }}>{selectedAutofillJob.logo}</div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{selectedAutofillJob.title} — {selectedAutofillJob.company}</div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>Pre-selected from results</div>
+                  <div className="text-sm font-bold text-slate-200">{selectedAutofillJob.title} — {selectedAutofillJob.company}</div>
+                  <div className="text-xs text-sky-400 font-medium">Pre-selected from results</div>
                 </div>
-                <button onClick={() => { setSelectedAutofillJob(null); setTargetUrl(""); }} style={{ marginLeft: "auto", background: "none", border: "none", color: "#475569", cursor: "pointer", fontSize: 16 }}>×</button>
+                <button onClick={() => { setSelectedAutofillJob(null); setTargetUrl(""); }} className="ml-auto bg-transparent border-none text-slate-400 hover:text-slate-200 cursor-pointer text-xl p-2 transition-colors">×</button>
               </div>
             )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-              <div>
-                <input type="file" ref={fileInputRef} accept=".pdf,.json" style={{ display: "none" }} onChange={(e) => setCvFile(e.target.files?.[0] || null)} />
+            <div className="grid grid-cols-2 gap-6">
+              <div className="flex flex-col gap-6">
+                <input type="file" ref={fileInputRef} accept=".pdf,.json" className="hidden" onChange={(e) => setCvFile(e.target.files?.[0] || null)} />
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  style={{ border: `2px dashed ${cvFile ? "#0369a1" : "#1e293b"}`, borderRadius: 12, padding: 32, textAlign: "center" as const, marginBottom: 16, cursor: "pointer", transition: "border-color 0.2s", background: cvFile ? "rgba(14,165,233,0.04)" : "transparent" }}
+                  className={`border-2 border-dashed rounded-3xl p-10 text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center min-h-[220px] ${cvFile ? "border-sky-500/50 bg-sky-500/5 shadow-[0_0_30px_rgba(56,189,248,0.1)]" : "border-white/20 bg-slate-950/40 hover:bg-white/5 hover:border-white/30 backdrop-blur-xl shadow-lg"}`}
                 >
-                  <div style={{ fontSize: 32, marginBottom: 12 }}>{cvFile ? "✅" : "📄"}</div>
-                  <div style={{ fontWeight: 600, marginBottom: 4 }}>{cvFile ? `CV Loaded — ${cvFile.name}` : "Drop your CV here"}</div>
-                  <div style={{ fontSize: 12, color: "#475569" }}>{cvFile ? "Click to replace" : "PDF or JSON resume · max 5MB"}</div>
-                  {!cvFile && <div style={{ marginTop: 16, padding: "8px 20px", borderRadius: 8, background: "#0f172a", border: "1px solid #1e293b", display: "inline-block", fontSize: 13, color: "#38bdf8", cursor: "pointer" }}>Browse Files</div>}
+                  <div className="text-4xl mb-4">{cvFile ? "✅" : "📄"}</div>
+                  <div className="font-bold text-lg text-slate-200 mb-1">{cvFile ? `CV Loaded — ${cvFile.name}` : "Drop your CV here"}</div>
+                  <div className="text-xs text-slate-500 font-medium">{cvFile ? "Click to replace" : "PDF or JSON resume · max 5MB"}</div>
+                  {!cvFile && <div className="mt-6 px-6 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-sky-400 font-bold hover:bg-white/10 transition-colors shadow-lg">Browse Files</div>}
                 </div>
 
-                <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 12, padding: 18 }}>
-                  <div style={{ fontSize: 12, color: "#475569", fontWeight: 600, marginBottom: 12, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>Field Mapping Preview</div>
-                  {fieldMappings.map(([field, val, st]) => (
-                    <div key={field} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #0f172a" }}>
-                      <span style={{ color: st === "✓" ? "#10b981" : st === "⚠ check" ? "#f59e0b" : st === "✗ manual" ? "#ef4444" : "#475569", width: 14, fontSize: 12 }}>{st}</span>
-                      <span style={{ fontSize: 12, color: "#64748b", width: 90 }}>{field}</span>
-                      <span style={{ fontSize: 12, color: "#94a3b8" }}>{val}</span>
-                    </div>
-                  ))}
+                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg">
+                  <div className="text-xs text-slate-400 font-bold mb-4 tracking-widest uppercase">Field Mapping Preview</div>
+                  <div className="flex flex-col">
+                    {fieldMappings.map(([field, val, st], idx) => (
+                      <div key={field} className={`flex items-center gap-3 py-3 ${idx < fieldMappings.length - 1 ? 'border-b border-white/5' : ''}`}>
+                        <span className="w-4 text-center text-sm" style={{ color: st === "✓" ? "#10b981" : st === "⚠ check" ? "#f59e0b" : st === "✗ manual" ? "#ef4444" : "#475569" }}>{st}</span>
+                        <span className="text-xs font-medium text-slate-400 w-24 shrink-0">{field}</span>
+                        <span className="text-xs font-bold text-slate-200 truncate">{val}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 12, padding: 18, marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, color: "#475569", fontWeight: 600, marginBottom: 12, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>Target Application</div>
+              <div className="flex flex-col gap-6">
+                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg">
+                  <div className="text-xs text-slate-400 font-bold mb-4 tracking-widest uppercase">Target Application</div>
                   <input
                     value={targetUrl}
                     onChange={e => setTargetUrl(e.target.value)}
                     placeholder="Paste job URL or select from results..."
-                    style={{ width: "100%", background: "#070d1a", border: "1px solid #1e293b", borderRadius: 8, padding: "10px 14px", color: "#e2e8f0", fontSize: 13, fontFamily: "inherit" }}
+                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-200 font-medium focus:outline-none focus:border-sky-500/50 transition-colors shadow-inner"
                   />
                   {autofillDone && (
-                    <div style={{ marginTop: 10, padding: "8px 12px", background: "rgba(16,185,129,0.1)", border: "1px solid #047857", borderRadius: 8, fontSize: 12, color: "#34d399" }}>
-                      ✓ Auto-fill complete — review form before submitting
+                    <div className="mt-3 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs font-bold text-emerald-400 flex items-center gap-2">
+                      <span className="text-sm">✓</span> Auto-fill complete — review form before submitting
                     </div>
                   )}
-                  <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                  <div className="mt-4 flex gap-3">
                     <button
                       onClick={runAutofill}
                       disabled={autofillRunning || (!targetUrl && !selectedAutofillJob)}
-                      style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", background: autofillRunning || (!targetUrl && !selectedAutofillJob) ? "#1e293b" : "linear-gradient(135deg, #0ea5e9, #818cf8)", color: autofillRunning || (!targetUrl && !selectedAutofillJob) ? "#475569" : "#fff", fontWeight: 600, fontSize: 13, cursor: autofillRunning || (!targetUrl && !selectedAutofillJob) ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                      className={`flex-1 py-3 rounded-xl border-none font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300 shadow-lg ${autofillRunning || (!targetUrl && !selectedAutofillJob) ? "bg-slate-800 text-slate-500 cursor-not-allowed" : "bg-gradient-to-br from-sky-400 to-indigo-500 text-white cursor-pointer hover:shadow-[0_0_20px_rgba(56,189,248,0.5)] hover:-translate-y-0.5"}`}
                     >
                       {autofillRunning
-                        ? <><span style={{ width: 14, height: 14, border: "2px solid #38bdf8", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} /> Filling...</>
+                        ? <><span className="w-3.5 h-3.5 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" /> Filling...</>
                         : "▶ Start Auto-Fill"
                       }
                     </button>
-                    <button style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #1e293b", background: "transparent", color: "#64748b", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Preview</button>
+                    <button className="px-5 py-3 rounded-xl border border-white/10 bg-white/5 text-slate-300 font-bold text-sm hover:bg-white/10 transition-colors cursor-pointer shadow-lg">Preview</button>
                   </div>
                 </div>
 
-                <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 12, padding: 18, marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, color: "#475569", fontWeight: 600, marginBottom: 12, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>Automation Mode</div>
-                  {(Object.entries(automationModes) as [string, boolean][]).map(([name, on]) => {
-                    const descs: Record<string, string> = {
-                      "Review Before Submit": "AI fills, you approve each section",
-                      "Full Auto": "AI fills and submits (risky)",
-                      "Stealth Mode": "Human-like delays + mouse moves",
-                    };
-                    return (
-                      <div key={name} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-                        <Toggle on={on} onChange={() => setAutomationModes(prev => ({ ...prev, [name]: !prev[name as keyof typeof automationModes] }))} />
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 500, color: on ? "#e2e8f0" : "#64748b" }}>{name}</div>
-                          <div style={{ fontSize: 11, color: "#475569" }}>{descs[name]}</div>
+                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg">
+                  <div className="text-xs text-slate-400 font-bold mb-5 tracking-widest uppercase">Automation Mode</div>
+                  <div className="flex flex-col gap-4">
+                    {(Object.entries(automationModes) as [string, boolean][]).map(([name, on]) => {
+                      const descs: Record<string, string> = {
+                        "Review Before Submit": "AI fills, you approve each section",
+                        "Full Auto": "AI fills and submits (risky)",
+                        "Stealth Mode": "Human-like delays + mouse moves",
+                      };
+                      return (
+                        <div key={name} className="flex items-center gap-4">
+                          <Toggle on={on} onChange={() => setAutomationModes(prev => ({ ...prev, [name]: !prev[name as keyof typeof automationModes] }))} />
+                          <div>
+                            <div className={`text-sm font-bold ${on ? "text-slate-200" : "text-slate-400"}`}>{name}</div>
+                            <div className="text-xs text-slate-500 font-medium">{descs[name]}</div>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 12, padding: 18 }}>
-                  <div style={{ fontSize: 12, color: "#475569", fontWeight: 600, marginBottom: 10, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>Auto-Fill Log</div>
+                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg flex-1">
+                  <div className="text-xs text-slate-400 font-bold mb-3 tracking-widest uppercase">Auto-Fill Log</div>
                   <AgentLog logs={logs.filter(l => ["AUTO-FILL", "PARSE-CV", "NAVIGATE", "MAP", "SUBMIT", "REVIEW", "DONE"].includes(l.prefix))} />
                 </div>
               </div>
@@ -994,101 +1023,106 @@ export default function JobPilot() {
 
         {/* ─── SETTINGS ─── */}
         {tab === "settings" && (
-          <div style={{ animation: "slideIn 0.3s ease" }}>
-            <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 24px", letterSpacing: "-0.03em" }}>Configuration <span style={{ color: "#38bdf8" }}>& Settings</span></h2>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-              <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 12, padding: 20 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16, color: "#94a3b8" }}>AI Backend</div>
-                {aiBackends.map((backend) => {
-                  const { name, model, url, apiKey } = backend;
-                  const active = selectedAI === name;
-                  return (
-                    <div key={name} style={{ marginBottom: 6 }}>
-                      <div
-                        onClick={() => { setSelectedAI(name); addLog("info", "CONFIG", `AI backend switched to ${name} (${model})`); }}
-                        style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: active ? "8px 8px 0 0" : 8, background: active ? "rgba(56,189,248,0.08)" : "transparent", border: `1px solid ${active ? "#0369a1" : "#0f172a"}`, borderBottom: active ? "1px solid #0f172a" : undefined, cursor: "pointer", transition: "all 0.2s" }}
-                      >
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: active ? "#10b981" : "#334155", flexShrink: 0 }} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: active ? 600 : 400, color: active ? "#e2e8f0" : "#64748b" }}>{name}</div>
-                          <div style={{ fontSize: 11, color: "#475569", fontFamily: "monospace" }}>{model}</div>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-3xl font-bold m-0 mb-8 tracking-tight text-white">Configuration <span className="text-sky-400 font-normal">& Settings</span></h2>
+            
+            <div className="grid grid-cols-2 gap-8">
+              <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg h-fit">
+                <div className="text-sm font-bold text-slate-400 mb-5 tracking-widest uppercase">AI Backend</div>
+                <div className="flex flex-col gap-3">
+                  {aiBackends.map((backend) => {
+                    const { name, model, url, apiKey } = backend;
+                    const active = selectedAI === name;
+                    return (
+                      <div key={name} className="flex flex-col">
+                        <div
+                          onClick={() => { setSelectedAI(name); addLog("info", "CONFIG", `AI backend switched to ${name} (${model})`); }}
+                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all ${active ? "bg-sky-500/10 border-sky-500/40 shadow-[0_0_15px_rgba(56,189,248,0.1)] rounded-b-none border-b-sky-500/20" : "bg-white/5 border-white/5 hover:bg-white/10"}`}
+                        >
+                          <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${active ? "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-600"}`} />
+                          <div className="flex-1">
+                            <div className={`text-sm font-bold ${active ? "text-slate-100" : "text-slate-400"}`}>{name}</div>
+                            <div className="text-[10px] text-slate-500 font-mono tracking-wide">{model}</div>
+                          </div>
+                          {active
+                            ? <span className="text-xs font-bold text-sky-400 bg-sky-500/20 px-2 py-0.5 rounded-md">Active ▾</span>
+                            : <span className="text-xs text-slate-500">▸</span>
+                          }
                         </div>
-                        {active
-                          ? <span style={{ fontSize: 11, color: "#38bdf8" }}>Active ▾</span>
-                          : <span style={{ fontSize: 11, color: "#334155" }}>▸</span>
-                        }
-                      </div>
 
-                      {active && (
-                        <div style={{ background: "#070d1a", border: "1px solid #0369a1", borderTop: "none", borderRadius: "0 0 8px 8px", padding: "14px 16px", display: "flex", flexDirection: "column" as const, gap: 10 }}>
-                          {/* Model */}
-                          <div>
-                            <div style={{ fontSize: 10, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>Model</div>
-                            <input
-                              value={model}
-                              onChange={e => updateBackend(name, "model", e.target.value)}
-                              placeholder="e.g. claude-sonnet-4-20250514"
-                              style={{ width: "100%", background: "#0a1628", border: "1px solid #1e293b", borderRadius: 6, padding: "7px 10px", color: "#e2e8f0", fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}
-                            />
+                        {active && (
+                          <div className="bg-slate-900/60 border border-sky-500/40 border-t-0 rounded-b-xl p-5 flex flex-col gap-4 shadow-inner">
+                            {/* Model */}
+                            <div>
+                              <div className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-1.5">Model</div>
+                              <input
+                                value={model}
+                                onChange={e => updateBackend(name, "model", e.target.value)}
+                                placeholder="e.g. claude-sonnet-4-20250514"
+                                className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500/50 transition-colors"
+                              />
+                            </div>
+                            {/* Endpoint URL */}
+                            <div>
+                              <div className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-1.5">API Endpoint URL</div>
+                              <input
+                                value={url}
+                                onChange={e => updateBackend(name, "url", e.target.value)}
+                                placeholder="https://api.anthropic.com/v1"
+                                className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500/50 transition-colors"
+                              />
+                            </div>
+                            {/* API Key */}
+                            <div>
+                              <div className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-1.5">API Key</div>
+                              <input
+                                type="password"
+                                value={apiKey}
+                                onChange={e => updateBackend(name, "apiKey", e.target.value)}
+                                placeholder={name === "Ollama (Local)" ? "Not required for local" : "sk-…"}
+                                className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500/50 transition-colors"
+                              />
+                            </div>
+                            <button
+                              onClick={async () => {
+                                addLog("success", "CONFIG", `Saved: ${name} → model=${model}, url=${url || "(default)"}, key=${apiKey ? "••••" + apiKey.slice(-4) : "(none)"}`);
+                                await saveProfile({ ...profile, skills, aiBackends });
+                              }}
+                              className="self-start px-5 py-2.5 rounded-lg border-none bg-gradient-to-br from-sky-400 to-indigo-500 text-white text-xs font-bold cursor-pointer mt-1 hover:shadow-[0_0_15px_rgba(56,189,248,0.4)] transition-shadow"
+                            >
+                              Save Changes
+                            </button>
                           </div>
-                          {/* Endpoint URL */}
-                          <div>
-                            <div style={{ fontSize: 10, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>API Endpoint URL</div>
-                            <input
-                              value={url}
-                              onChange={e => updateBackend(name, "url", e.target.value)}
-                              placeholder="https://api.anthropic.com/v1"
-                              style={{ width: "100%", background: "#0a1628", border: "1px solid #1e293b", borderRadius: 6, padding: "7px 10px", color: "#e2e8f0", fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}
-                            />
-                          </div>
-                          {/* API Key */}
-                          <div>
-                            <div style={{ fontSize: 10, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>API Key</div>
-                            <input
-                              type="password"
-                              value={apiKey}
-                              onChange={e => updateBackend(name, "apiKey", e.target.value)}
-                              placeholder={name === "Ollama (Local)" ? "Not required for local" : "sk-…"}
-                              style={{ width: "100%", background: "#0a1628", border: "1px solid #1e293b", borderRadius: 6, padding: "7px 10px", color: "#e2e8f0", fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}
-                            />
-                          </div>
-                          <button
-                            onClick={async () => {
-                              addLog("success", "CONFIG", `Saved: ${name} → model=${model}, url=${url || "(default)"}, key=${apiKey ? "••••" + apiKey.slice(-4) : "(none)"}`);
-                              await saveProfile({ ...profile, skills, aiBackends });
-                            }}
-                            style={{ alignSelf: "flex-start" as const, padding: "6px 16px", borderRadius: 6, border: "none", background: "linear-gradient(135deg, #0ea5e9, #818cf8)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
-                          >
-                            Save Changes
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 12, padding: 20 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 14, color: "#94a3b8" }}>Profile</div>
-                  {(Object.entries(profile) as [string, string][]).map(([k, v]) => (
-                    <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #0f172a", fontSize: 13, gap: 12 }}>
-                      <span style={{ color: "#475569", flexShrink: 0 }}>{k}</span>
-                      <input
-                        value={v}
-                        onChange={e => setProfile(prev => ({ ...prev, [k]: e.target.value }))}
-                        style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: 13, textAlign: "right" as const, fontFamily: "inherit", flex: 1 }}
-                      />
-                    </div>
-                  ))}
+              <div className="flex flex-col gap-6">
+                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg">
+                  <div className="text-sm font-bold text-slate-400 mb-4 tracking-widest uppercase">Profile</div>
+                  <div className="flex flex-col">
+                    {(Object.entries(profile) as [string, string][]).map(([k, v], idx) => (
+                      <div key={k} className={`flex justify-between items-center py-2.5 ${idx < Object.entries(profile).length - 1 ? 'border-b border-white/5' : ''}`}>
+                        <span className="text-xs font-medium text-slate-400 shrink-0">{k}</span>
+                        <input
+                          value={v}
+                          onChange={e => setProfile(prev => ({ ...prev, [k]: e.target.value }))}
+                          className="bg-transparent border-none text-slate-200 text-sm font-bold text-right focus:outline-none focus:text-sky-400 transition-colors flex-1"
+                        />
+                      </div>
+                    ))}
+                  </div>
                   
-                  <div style={{ marginTop: 14 }}>
-                    <div style={{ fontSize: 10, color: "#475569", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 8 }}>Skills</div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                  <div className="mt-5">
+                    <div className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-2.5">Skills</div>
+                    <div className="flex flex-wrap gap-2 mb-3">
                       {skills.map(s => (
-                        <span key={s} style={{ padding: "3px 8px", borderRadius: 4, background: "rgba(56,189,248,0.1)", color: "#38bdf8", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+                        <span key={s} className="px-2.5 py-1 rounded-md bg-sky-500/10 text-sky-400 text-[10px] font-bold tracking-wide flex items-center gap-1.5 border border-sky-500/20">
                           {s}
-                          <span onClick={() => setSkills(skills.filter(x => x !== s))} style={{ cursor: "pointer", opacity: 0.7 }}>×</span>
+                          <span onClick={() => setSkills(skills.filter(x => x !== s))} className="cursor-pointer hover:text-white transition-colors">×</span>
                         </span>
                       ))}
                     </div>
@@ -1100,7 +1134,7 @@ export default function JobPilot() {
                         }
                       }}
                       placeholder="Add skill (press Enter)..."
-                      style={{ width: "100%", background: "#0a1628", border: "1px solid #1e293b", borderRadius: 6, padding: "7px 10px", color: "#e2e8f0", fontSize: 12, fontFamily: "inherit" }}
+                      className="w-full bg-slate-900/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500/50 transition-colors"
                     />
                   </div>
 
@@ -1110,35 +1144,39 @@ export default function JobPilot() {
                       if (ok) addLog("success", "PROFILE", "Profile saved to database. ✓");
                       else addLog("error", "ERROR", "Failed to save profile.");
                     }}
-                    style={{ marginTop: 12, padding: "8px 16px", borderRadius: 8, border: "none", background: "rgba(56,189,248,0.1)", color: "#38bdf8", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                    className="mt-6 px-5 py-2.5 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-400 text-sm font-bold cursor-pointer hover:bg-sky-500/20 transition-colors w-full"
                   >
                     💾 Save Profile
                   </button>
                 </div>
 
-                <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 12, padding: 20 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 14, color: "#94a3b8" }}>Automation</div>
-                  {(Object.entries(automation) as [string, boolean][]).map(([label, on]) => (
-                    <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                      <span style={{ fontSize: 13, color: on ? "#94a3b8" : "#475569" }}>{label}</span>
-                      <Toggle on={on} onChange={() => setAutomation(prev => ({ ...prev, [label]: !prev[label as keyof typeof automation] }))} />
-                    </div>
-                  ))}
+                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg">
+                  <div className="text-sm font-bold text-slate-400 mb-5 tracking-widest uppercase">Automation</div>
+                  <div className="flex flex-col gap-4">
+                    {(Object.entries(automation) as [string, boolean][]).map(([label, on]) => (
+                      <div key={label} className="flex items-center justify-between">
+                        <span className={`text-sm font-bold ${on ? "text-slate-200" : "text-slate-500"}`}>{label}</span>
+                        <Toggle on={on} onChange={() => setAutomation(prev => ({ ...prev, [label]: !prev[label as keyof typeof automation] }))} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                <div style={{ background: "#0a1628", border: "1px solid #1e293b", borderRadius: 12, padding: 20 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 14, color: "#94a3b8" }}>Discovery Stats</div>
-                  {[
-                    ["Total Searches", "12"],
-                    ["Jobs Discovered", "247"],
-                    ["Applications Filed", String(trackerJobs.filter(j => j.status === "Applied" || j.status === "Interview" || j.status === "Offer").length)],
-                    ["Avg. Match Score", `${Math.round(trackerJobs.reduce((a, j) => a + (j.score || 0), 0) / trackerJobs.length)}/100`],
-                  ].map(([k, v]) => (
-                    <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid #0f172a", fontSize: 13 }}>
-                      <span style={{ color: "#475569" }}>{k}</span>
-                      <span style={{ color: "#38bdf8", fontFamily: "monospace", fontWeight: 600 }}>{v}</span>
-                    </div>
-                  ))}
+                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg">
+                  <div className="text-sm font-bold text-slate-400 mb-4 tracking-widest uppercase">Discovery Stats</div>
+                  <div className="flex flex-col">
+                    {[
+                      ["Total Searches", "12"],
+                      ["Jobs Discovered", "247"],
+                      ["Applications Filed", String(trackerJobs.filter(j => j.status === "Applied" || j.status === "Interview" || j.status === "Offer").length)],
+                      ["Avg. Match Score", `${Math.round(trackerJobs.reduce((a, j) => a + (j.score || 0), 0) / Math.max(trackerJobs.length, 1))}/100`],
+                    ].map(([k, v], idx) => (
+                      <div key={k} className={`flex justify-between items-center py-2.5 ${idx < 3 ? 'border-b border-white/5' : ''}`}>
+                        <span className="text-xs font-medium text-slate-400">{k}</span>
+                        <span className="text-sm font-bold text-sky-400 font-mono tracking-tight">{v}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

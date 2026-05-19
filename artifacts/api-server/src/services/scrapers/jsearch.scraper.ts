@@ -130,7 +130,7 @@ async function scrapeViaDuckDuckGo(
     const queries = [
       `${opts.role} jobs in ${opts.region} site:linkedin.com/jobs`,
       `${opts.role} jobs in ${opts.region} site:indeed.com`,
-      `${opts.role} ${opts.region} hiring 2025 apply`,
+      `"${opts.role}" "${opts.region}" hiring site:glassdoor.com`,
     ];
 
     for (const query of queries) {
@@ -149,6 +149,13 @@ async function scrapeViaDuckDuckGo(
         if (!res.ok) continue;
 
         const html = await res.text();
+
+        // DDG blocks most automated requests with anomaly detection
+        if (html.includes("anomaly") || !html.includes("uddg=")) {
+          onLog("info", `DuckDuckGo: blocked by anomaly detection — skipping`);
+          break; // No point trying more queries if DDG is blocking us
+        }
+
         const extracted = parseDDGResults(html, opts, SOURCE_DDG);
 
         for (const job of extracted) {
@@ -177,24 +184,75 @@ async function scrapeViaDuckDuckGo(
 function parseDDGResults(html: string, opts: SearchOptions, source: string): ScrapedJob[] {
   const jobs: ScrapedJob[] = [];
 
-  // Extract result blocks from DDG HTML
-  const resultPattern = /<div[^>]*class="[^"]*result[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<div/g;
-  const titlePattern = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/;
-  const snippetPattern = /<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/;
+  // DDG HTML endpoint uses multiple possible patterns depending on version.
+  // Try multiple extraction strategies.
 
+  // Strategy 1: Modern DDG HTML with result links
+  const resultLinkPattern = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+  const snippetAfterLink = /<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/g;
+
+  // Strategy 2: DDG with result-link class
+  const altLinkPattern = /<a[^>]*class="[^"]*result-link[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+
+  // Collect all links from both patterns
+  const rawResults: Array<{ url: string; title: string; snippet: string }> = [];
+
+  // Extract using Strategy 1
   let m: RegExpExecArray | null;
-  while ((m = resultPattern.exec(html))) {
-    const block = m[1];
+  const snippets: string[] = [];
+  while ((m = snippetAfterLink.exec(html))) {
+    snippets.push(cleanHtml(m[1]));
+  }
 
-    const titleMatch = titlePattern.exec(block);
-    const snippetMatch = snippetPattern.exec(block);
+  let idx = 0;
+  while ((m = resultLinkPattern.exec(html))) {
+    let url = decodeURIComponent(m[1] || "");
+    // DDG wraps URLs in redirect: /l/?uddg=ENCODED_URL&rut=...
+    if (url.includes("/l/?uddg=") || url.includes("duckduckgo.com/l/")) {
+      try {
+        const match = url.match(/[?&]uddg=([^&]+)/);
+        if (match) url = decodeURIComponent(match[1]);
+      } catch { /* keep original */ }
+    }
+    const title = cleanHtml(m[2]);
+    rawResults.push({ url, title, snippet: snippets[idx] || "" });
+    idx++;
+  }
 
-    if (!titleMatch) continue;
+  // Extract using Strategy 2 if Strategy 1 found nothing
+  if (rawResults.length === 0) {
+    while ((m = altLinkPattern.exec(html))) {
+      let url = decodeURIComponent(m[1] || "");
+      if (url.includes("/l/?uddg=") || url.includes("duckduckgo.com/l/")) {
+        try {
+          const match = url.match(/[?&]uddg=([^&]+)/);
+          if (match) url = decodeURIComponent(match[1]);
+        } catch { /* keep original */ }
+      }
+      const title = cleanHtml(m[2]);
+      rawResults.push({ url, title, snippet: "" });
+    }
+  }
 
-    const url = decodeURIComponent(titleMatch[1] || "").replace(/\/\/duckduckgo.com\/l\/\?uddg=/, "");
-    const titleText = cleanHtml(titleMatch[2]);
-    const snippet = snippetMatch ? cleanHtml(snippetMatch[1]) : "";
+  // Strategy 3: Fallback — extract all <a href> that point to job sites
+  if (rawResults.length === 0) {
+    const allLinksPattern = /<a[^>]*href="([^"]*(?:linkedin\.com\/jobs|indeed\.com|glassdoor\.com|greenhouse\.io|lever\.co|workable\.com)[^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
+    while ((m = allLinksPattern.exec(html))) {
+      let url = decodeURIComponent(m[1] || "");
+      if (url.includes("/l/?uddg=") || url.includes("duckduckgo.com/l/")) {
+        try {
+          const match = url.match(/[?&]uddg=([^&]+)/);
+          if (match) url = decodeURIComponent(match[1]);
+        } catch { /* keep original */ }
+      }
+      const title = cleanHtml(m[2]);
+      if (url.startsWith("http") && title.length > 3) {
+        rawResults.push({ url, title, snippet: "" });
+      }
+    }
+  }
 
+  for (const { url, title: titleText, snippet } of rawResults) {
     if (!url.startsWith("http")) continue;
 
     const locationText = opts.region; 
@@ -206,13 +264,17 @@ function parseDDGResults(html: string, opts: SearchOptions, source: string): Scr
     const isJobUrl =
       url.includes("linkedin.com/jobs") ||
       url.includes("indeed.com/viewjob") ||
+      url.includes("indeed.com/job") ||
       url.includes("greenhouse.io") ||
       url.includes("lever.co") ||
       url.includes("workable.com") ||
       url.includes("smartrecruiters.com") ||
       url.includes("careers.") ||
       url.includes("/jobs/") ||
-      url.includes("glassdoor.com/job");
+      url.includes("glassdoor.com/job") ||
+      url.includes("bayt.com") ||
+      url.includes("naukrigulf.com") ||
+      url.includes("gulftalent.com");
 
     if (!isJobUrl) continue;
 

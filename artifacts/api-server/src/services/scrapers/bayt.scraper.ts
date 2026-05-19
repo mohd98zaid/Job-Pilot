@@ -4,7 +4,7 @@
 
 import { getBrowser, newStealthContext, humanDelay, humanScroll } from "./browser.js";
 import { type ScrapedJob, type SearchOptions, type JobEmitter, type LogEmitter } from "./types.js";
-import { isJobRelevant } from "./relevance.js";
+import { buildLocationTerms } from "./relevance.js";
 import { logger } from "../../lib/logger.js";
 
 const SOURCE = "Bayt";
@@ -88,24 +88,30 @@ export async function scrapeBayt(
         return extracted;
       }, { source: SOURCE, pageNum });
 
-      const regionParts = opts.region.toLowerCase().split(/[,/\s]+/).filter(Boolean);
+      const regionTerms = buildLocationTerms(opts.region.toLowerCase());
 
       for (const job of pageJobs) {
         const locLower = (job.location || "").toLowerCase();
-        const isRemote = locLower.includes("remote") || locLower.includes("anywhere");
-        const matchesRegion = isRemote || regionParts.some((p) => locLower.includes(p)) || locLower === "";
+        const isRemote = locLower.includes("remote") || locLower.includes("anywhere") || locLower.includes("worldwide");
+        const matchesRegion = isRemote || 
+          locLower === "" || 
+          regionTerms.some((term) => locLower.includes(term)) ||
+          locLower.includes("middle east") || locLower.includes("gcc") || locLower.includes("mena");
 
         if (!matchesRegion) continue;
 
-        if (!isJobRelevant(
-          job.title,
-          job.salary + " " + job.location,
-          [`loc:${job.location}`],
-          opts.role,
-          opts.aliases || [],
-          opts.exclusions || [],
-          opts.region
-        )) continue;
+        // Use relaxed relevance check for Bayt — the search URL already filtered by role,
+        // so we only need to verify the title is somewhat related (not an exact keyword match)
+        const titleLower = job.title.toLowerCase();
+        const roleWords = opts.role.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        const allAliases = [...(opts.aliases || []), opts.role];
+        
+        // Accept if title contains ANY of the role keywords or aliases
+        const isRelevant = roleWords.some(w => titleLower.includes(w)) ||
+          allAliases.some(alias => titleLower.includes(alias.toLowerCase())) ||
+          titleLower.includes("ai") || titleLower.includes("engineer") || titleLower.includes("developer");
+
+        if (!isRelevant) continue;
 
         const scrapedJob: ScrapedJob = { ...job, logo: "BY", color: BASE_COLOR };
         results.push(scrapedJob);
@@ -118,7 +124,25 @@ export async function scrapeBayt(
       if (pageNum < 3) {
         const nextBtn = await page.$("a[rel='next'], .pager-next a, [class*='next'] a");
         if (!nextBtn) break;
-        await nextBtn.click();
+
+        // Wait for any loading overlay to disappear before clicking
+        await page.waitForSelector("[class*='is-loading']", { state: "hidden", timeout: 10000 }).catch(() => {});
+        await page.waitForSelector("[data-bayt-loader]", { state: "hidden", timeout: 5000 }).catch(() => {});
+        
+        // Scroll the next button into view and use force click to bypass intercepting elements
+        try {
+          await nextBtn.scrollIntoViewIfNeeded();
+          await humanDelay(500, 1000);
+          await nextBtn.click({ force: true, timeout: 10000 });
+        } catch {
+          // If click still fails, try navigating directly via href
+          const href = await nextBtn.getAttribute("href").catch(() => null);
+          if (href) {
+            const nextUrl = href.startsWith("http") ? href : `https://www.bayt.com${href}`;
+            await page.goto(nextUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
+          } else break;
+        }
+        
         await humanDelay(2000, 3500);
         await humanScroll(page, 3);
       }

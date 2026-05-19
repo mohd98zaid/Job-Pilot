@@ -32,18 +32,32 @@ export async function scrapeNaukriGulf(
   try {
     onLog("info", `NaukriGulf: searching for "${opts.role}" in "${opts.region}"...`);
 
-    // NaukriGulf's public search endpoint (same pattern as Naukri India)
+    // NaukriGulf's public search endpoint — the site is now a SPA.
+    // The old JSON APIs (njapi/v2, /api/search) return 404.
+    // The site loads job data via AJAX with specific headers.
     const headers = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      "Accept": "application/json, text/html,*/*",
-      "Accept-Language": "en-US,en;q=0.9",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "systemId": "ngjobseeker",
+      "appId": "2050",
+      "cache-control": "no-cache",
       "Referer": "https://www.naukrigulf.com/",
-      "systemId": "default",
+      "Origin": "https://www.naukrigulf.com",
+      "Accept-Language": "en-US,en;q=0.9",
     };
 
-    // NaukriGulf API — try both known endpoint patterns (the active one changes over time)
+    // NaukriGulf API — try multiple endpoint patterns (they change frequently)
     const API_PATTERNS = [
-      // Pattern A: legacy v2 API (may return HTML on new deployments)
+      // Pattern A: jobseeker search API (discovered from page source)
+      (page: number) =>
+        `https://www.naukrigulf.com/njapi/jobseeker/search?` +
+        `keyword=${encodeURIComponent(opts.role)}` +
+        `&location=${encodeURIComponent(opts.region)}` +
+        `&pageNo=${page}` +
+        `&noOfResults=25` +
+        `&sort=date`,
+      // Pattern B: legacy v2 API
       (page: number) =>
         `https://www.naukrigulf.com/njapi/v2/job/search?` +
         `searchType=query` +
@@ -52,7 +66,7 @@ export async function scrapeNaukriGulf(
         `&pageNo=${page}` +
         `&noOfResults=25` +
         `&sort=1`,
-      // Pattern B: 2024-25 active search API
+      // Pattern C: newer search API
       (page: number) =>
         `https://www.naukrigulf.com/api/search/job-listing?` +
         `keyword=${encodeURIComponent(opts.role)}` +
@@ -201,56 +215,112 @@ async function scrapeNaukriGulfHtml(
   try {
     const roleSlug = opts.role.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     const regionSlug = opts.region.toLowerCase().replace(/[\s/,]+/g, "-").replace(/[^a-z0-9-]/g, "");
-    const url = `https://www.naukrigulf.com/${roleSlug}-jobs-in-${regionSlug}`;
+    
+    // Try multiple URL patterns (NaukriGulf changes their URL structure)
+    const urls = [
+      `https://www.naukrigulf.com/${roleSlug}-jobs-in-${regionSlug}`,
+      `https://www.naukrigulf.com/jobs-in-${regionSlug}?k=${encodeURIComponent(opts.role)}`,
+      `https://www.naukrigulf.com/search-result?keyword=${encodeURIComponent(opts.role)}&location=${encodeURIComponent(opts.region)}`,
+    ];
 
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "text/html",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-    });
-
-    if (!res.ok) return;
-
-    const html = await res.text();
-
-    // NaukriGulf embeds job data in a JSON script tag
-    const jsonMatch = html.match(/window\.__INITIAL_STATE__\s*=\s*({[\s\S]*?});\s*<\/script>/);
-    if (jsonMatch) {
-      try {
-        const state = JSON.parse(jsonMatch[1]);
-        const jobs: any[] = state?.jobSearch?.jobData || state?.jobList || [];
-
-        for (const job of jobs.slice(0, 30)) {
-          const title = job.title || job.jobTitle || "";
-          const company = job.companyName || job.company || "Unknown";
-          const location = job.location || opts.region;
-
-          if (!title || !isJobRelevant(title, "", [`loc:${location}`], opts.role, opts.aliases || [], [], opts.region)) continue;
-
-          const jobUrl = job.jobUrl || job.applyUrl || `https://www.naukrigulf.com/job-${job.jobId}`;
-          const scrapedJob: ScrapedJob = {
-            title,
-            company,
-            location,
-            salary: job.salary || "Not listed",
-            url: jobUrl.startsWith("http") ? jobUrl : `https://www.naukrigulf.com${jobUrl}`,
-            postedAt: job.postedOn,
-            source: SOURCE,
-            externalId: `ng-${job.jobId || Date.now()}`,
-            logo: "NG",
-            color: BASE_COLOR,
-          };
-
-          results.push(scrapedJob);
-          onJob(scrapedJob);
-        }
-        return;
-      } catch (_) {}
+    let html = "";
+    for (const url of urls) {
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "Accept": "text/html",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      });
+      if (res.ok) {
+        html = await res.text();
+        if (html.includes("job") || html.includes("Job")) break;
+      }
     }
 
-    // Regex fallback on HTML
+    if (!html) return;
+
+    // Strategy 1: NaukriGulf embeds job data in a JSON script tag
+    const jsonPatterns = [
+      /window\.__INITIAL_STATE__\s*=\s*({[\s\S]*?});\s*<\/script>/,
+      /window\.__NEXT_DATA__\s*=\s*({[\s\S]*?});\s*<\/script>/,
+      /<script id="__NEXT_DATA__"[^>]*>({[\s\S]*?})<\/script>/,
+    ];
+
+    for (const pattern of jsonPatterns) {
+      const jsonMatch = html.match(pattern);
+      if (jsonMatch) {
+        try {
+          const state = JSON.parse(jsonMatch[1]);
+          // Try multiple paths where job data might live
+          const jobs: any[] = 
+            state?.jobSearch?.jobData || 
+            state?.jobList || 
+            state?.props?.pageProps?.jobs ||
+            state?.props?.pageProps?.jobList ||
+            state?.props?.pageProps?.searchResult?.jobs ||
+            [];
+
+          for (const job of jobs.slice(0, 30)) {
+            const title = job.title || job.jobTitle || job.designation || "";
+            const company = job.companyName || job.company || job.organizationName || "Unknown";
+            const location = job.location || job.placeholders?.location || opts.region;
+
+            if (!title || !isJobRelevant(title, "", [`loc:${location}`], opts.role, opts.aliases || [], [], opts.region)) continue;
+
+            const jobUrl = job.jobUrl || job.applyUrl || job.jdURL || job.url || `https://www.naukrigulf.com/job-${job.jobId || job.id}`;
+            const scrapedJob: ScrapedJob = {
+              title,
+              company,
+              location,
+              salary: job.salary || job.placeholders?.salary || "Not listed",
+              url: jobUrl.startsWith("http") ? jobUrl : `https://www.naukrigulf.com${jobUrl}`,
+              postedAt: job.postedOn || job.createdDate,
+              source: SOURCE,
+              externalId: `ng-${job.jobId || job.id || Date.now()}`,
+              logo: "NG",
+              color: BASE_COLOR,
+            };
+
+            results.push(scrapedJob);
+            onJob(scrapedJob);
+          }
+          if (results.length > 0) return;
+        } catch (_) {}
+      }
+    }
+
+    // Strategy 2: JSON-LD structured data
+    const ldRe = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi;
+    let ldMatch: RegExpExecArray | null;
+    while ((ldMatch = ldRe.exec(html))) {
+      try {
+        const d = JSON.parse(ldMatch[1]);
+        const items = Array.isArray(d) ? d : d["@graph"] || [d];
+        for (const item of items) {
+          if (item["@type"] === "JobPosting") {
+            const title = item.title || "";
+            if (!title || !isJobRelevant(title, item.description || "", [], opts.role, opts.aliases || [], [], opts.region)) continue;
+            const scrapedJob: ScrapedJob = {
+              title,
+              company: item.hiringOrganization?.name || "Unknown",
+              location: item.jobLocation?.address?.addressLocality || opts.region,
+              salary: item.baseSalary?.value?.value ? `${item.baseSalary.currency || ""} ${item.baseSalary.value.value}` : "Not listed",
+              url: item.url || "",
+              postedAt: item.datePosted,
+              source: SOURCE,
+              externalId: `ng-${item.url || Date.now()}`,
+              logo: "NG",
+              color: BASE_COLOR,
+            };
+            results.push(scrapedJob);
+            onJob(scrapedJob);
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Strategy 3: Regex fallback on HTML
     const titleRe = /<a[^>]*class="[^"]*designation[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
     const companyRe = /<span[^>]*class="[^"]*company-name[^"]*"[^>]*>([\s\S]*?)<\/span>/gi;
     const locationRe = /<span[^>]*class="[^"]*location[^"]*"[^>]*>([\s\S]*?)<\/span>/gi;
