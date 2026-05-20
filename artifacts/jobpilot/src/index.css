@@ -1,8 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  --font-sans: "Fira Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "Fira Code", monospace;
 }
 
 /* ── Reset ── */
@@ -16,13 +17,17 @@
 
 /* ── Body ── */
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: #0D1017;
+  font-family: var(--font-sans);
+  background: #000000;
   color: #f8fafc;
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-mono);
 }
 
 /* ── Subtle noise texture overlay ── */
@@ -40,32 +45,32 @@ body::before {
 
 /* ── Surface tokens ── */
 .surface {
-  background: #141923;
+  background: #050505;
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
 }
 
 .surface-elevated {
-  background: #131920;
+  background: #0a0a0a;
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 18px;
-  box-shadow: 0 4px 32px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 32px rgba(0,0,0,0.8);
 }
 
 .surface-interactive {
-  background: #141923;
+  background: #050505;
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
   transition: all 200ms ease;
 }
 .surface-interactive:hover {
-  background: #1C212D;
+  background: #0f0f0f;
   border-color: rgba(255, 255, 255, 0.1);
 }
 
 /* ── Input base ── */
 .input-base {
-  background: #0D1017;
+  background: #000000;
   border: 1px solid transparent;
   border-radius: 10px;
   color: #f8fafc;
@@ -76,9 +81,9 @@ body::before {
   width: 100%;
 }
 .input-base::placeholder { color: #475569; }
-.input-base:hover { background: #11141C; }
+.input-base:hover { background: #050505; }
 .input-base:focus {
-  background: #11141C;
+  background: #050505;
   border-color: #3B82F6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
@@ -99,14 +104,14 @@ body::before {
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3), inset 0 1px 0 rgba(255,255,255,0.2);
 }
 .btn-primary:hover {
-  background: linear-gradient(180deg, #4F46E5 0%, #3730A3 100%); /* Slightly deeper purplish blue on hover */
-  border-color: #312E81;
-  box-shadow: 0 6px 20px rgba(55, 48, 163, 0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+  background: linear-gradient(180deg, #60A5FA 0%, #3B82F6 100%);
+  border-color: #2563EB;
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255,255,255,0.2);
   transform: translateY(-1px);
 }
 .btn-primary:active { transform: translateY(0); }
 .btn-primary:disabled {
-  background: #27272a;
+  background: #18181b;
   color: #52525b;
   cursor: not-allowed;
   box-shadow: none;
@@ -149,6 +154,9 @@ body::before {
 /* ── Accent glow ── */
 .accent-glow {
   box-shadow: 0 0 20px rgba(59, 130, 246, 0.25), 0 0 60px rgba(59, 130, 246, 0.1);
+}
+.accent-glow-text {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
 /* ── Tag/chip ── */
