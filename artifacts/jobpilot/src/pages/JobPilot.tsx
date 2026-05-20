@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { 
+import { LayoutDashboard, Compass, List, Activity, Wand2, Settings, Briefcase, TrendingUp, Sparkles, Rocket, ArrowUpRight, Search, Trash2, ExternalLink, ChevronDown, Upload, Zap, Eye, User, Globe, Building2, Link, CalendarDays } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
   searchRealJobs, 
   scoreJobsWithAI, 
   dedupeJobsWithAI, 
@@ -12,30 +14,33 @@ import {
   clearAllJobs,
   getAllJobs,
   updateJobStatus,
+  mapFieldsWithAI,
   type CustomPortal, 
   type Job 
 } from "../lib/ai-utils";
 
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  Discovered: { bg: "rgba(100,116,139,0.15)", text: "#94a3b8", border: "#334155" },
-  Saved:      { bg: "rgba(14,165,233,0.12)",  text: "#38bdf8", border: "#0369a1" },
-  Applied:    { bg: "rgba(139,92,246,0.15)",  text: "#a78bfa", border: "#6d28d9" },
-  Interview:  { bg: "rgba(245,158,11,0.15)",  text: "#fbbf24", border: "#b45309" },
-  Offer:      { bg: "rgba(16,185,129,0.15)",  text: "#34d399", border: "#047857" },
-  Rejected:   { bg: "rgba(239,68,68,0.1)",    text: "#f87171", border: "#991b1b" },
+  Discovered: { bg: "rgba(113,113,122,0.12)", text: "#a1a1aa", border: "#3f3f46" },
+  Saved:      { bg: "rgba(167,139,250,0.10)", text: "#c4b5fd", border: "#7c3aed" },
+  Applied:    { bg: "rgba(96,165,250,0.10)",  text: "#93c5fd", border: "#3b82f6" },
+  Interview:  { bg: "rgba(251,191,36,0.10)",  text: "#fcd34d", border: "#d97706" },
+  Offer:      { bg: "rgba(52,211,153,0.10)",  text: "#6ee7b7", border: "#059669" },
+  Rejected:   { bg: "rgba(248,113,113,0.08)", text: "#fca5a5", border: "#dc2626" },
 };
 
 type LogEntry = { time: string; type: string; prefix: string; msg: string };
 
+/* ── Tiny reusable components ── */
+
 const ScoreBar = ({ score }: { score: number }) => {
-  const color = score >= 90 ? "#10b981" : score >= 80 ? "#f59e0b" : "#ef4444";
+  const color = score >= 90 ? "#34d399" : score >= 80 ? "#fbbf24" : score >= 60 ? "#fb923c" : "#f87171";
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <div style={{ flex: 1, height: 4, background: "#1e293b", borderRadius: 2, overflow: "hidden" }}>
-        <div style={{ width: `${score}%`, height: "100%", background: color, borderRadius: 2, transition: "width 0.6s ease" }} />
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1 bg-zinc-800 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${score}%`, background: color }} />
       </div>
-      <span style={{ fontSize: 13, fontWeight: 700, color, minWidth: 28, fontFamily: "'JetBrains Mono', monospace" }}>{score}</span>
+      <span className="text-xs font-mono font-semibold tabular-nums" style={{ color, minWidth: 24 }}>{score}</span>
     </div>
   );
 };
@@ -43,7 +48,7 @@ const ScoreBar = ({ score }: { score: number }) => {
 const Badge = ({ status }: { status: string }) => {
   const s = STATUS_COLORS[status] || STATUS_COLORS.Discovered;
   return (
-    <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: s.bg, color: s.text, border: `1px solid ${s.border}`, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
+    <span className="chip" style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>
       {status}
     </span>
   );
@@ -53,14 +58,19 @@ const AgentLog = ({ logs }: { logs: LogEntry[] }) => {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { if (ref.current) ref.current.scrollTop = ref.current.scrollHeight; }, [logs]);
   return (
-    <div ref={ref} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: "#94a3b8", background: "#020817", border: "1px solid #0f172a", borderRadius: 10, padding: 16, height: 200, overflowY: "auto", lineHeight: 1.8 }}>
-      {logs.map((l, i) => (
-        <div key={i}>
-          <span style={{ color: "#334155" }}>[{l.time}] </span>
-          <span style={{ color: l.type === "success" ? "#10b981" : l.type === "error" ? "#ef4444" : l.type === "ai" ? "#818cf8" : "#38bdf8" }}>{l.prefix} </span>
-          <span style={{ color: "#cbd5e1" }}>{l.msg}</span>
-        </div>
-      ))}
+    <div ref={ref} className="font-mono text-[12px] text-zinc-500 p-6 h-full overflow-y-auto leading-loose">
+      {logs.map((l, i) => {
+        const colorClass = l.type === "success" ? "bg-emerald-500 text-emerald-400" : l.type === "error" ? "bg-red-500 text-red-400" : l.type === "ai" ? "bg-blue-500 text-blue-400" : "bg-emerald-500 text-zinc-200";
+        const dotBg = l.type === "success" ? "bg-emerald-500" : l.type === "error" ? "bg-red-500" : l.type === "ai" ? "bg-blue-500" : "bg-emerald-500";
+        return (
+          <div key={i} className="mb-2 flex gap-4 items-start">
+            <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${dotBg}`} />
+            <span className="text-zinc-600 font-semibold">{l.time}</span>
+            <span className={`font-bold uppercase tracking-wide ${colorClass.split(' ')[1]}`}>{l.prefix}</span>
+            <span className="text-zinc-400">{l.msg}</span>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -68,13 +78,28 @@ const AgentLog = ({ logs }: { logs: LogEntry[] }) => {
 const Toggle = ({ on, onChange }: { on: boolean; onChange: () => void }) => (
   <div
     onClick={onChange}
-    style={{ width: 36, height: 20, borderRadius: 10, background: on ? "#0ea5e9" : "#1e293b", position: "relative", cursor: "pointer", flexShrink: 0, transition: "background 0.2s" }}
+    className={`w-9 h-5 rounded-full relative cursor-pointer shrink-0 transition-colors duration-200 ${on ? "bg-blue-600" : "bg-zinc-800"}`}
   >
-    <div style={{ width: 14, height: 14, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: on ? 19 : 3, transition: "left 0.2s" }} />
+    <div className={`w-3.5 h-3.5 rounded-full bg-white absolute top-[3px] transition-all duration-200 ${on ? "left-[19px]" : "left-[3px]"}`} />
   </div>
 );
 
+/* ── Section header ── */
+const SectionHeader = ({ title, highlight, children }: { title: string; highlight: string; children?: React.ReactNode }) => (
+  <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+    <h2 className="text-2xl font-bold tracking-tight text-zinc-100 leading-snug">
+      {title} <span className="text-blue-400 font-normal">{highlight}</span>
+    </h2>
+    {children}
+  </div>
+);
+
+/* ════════════════════════════════════════════════════════ */
+/*                       MAIN COMPONENT                    */
+/* ════════════════════════════════════════════════════════ */
+
 export default function JobPilot() {
+  /* ── State (unchanged business logic) ── */
   const [tab, setTab] = useState("dashboard");
   const [searching, setSearching] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -90,11 +115,8 @@ export default function JobPilot() {
   const [filterStatus, setFilterStatus] = useState("All");
   const [activeBoards, setActiveBoards] = useState<string[]>(() => {
     const saved = localStorage.getItem("jobpilot_activeBoards");
-    try {
-      return saved ? JSON.parse(saved) : ["LinkedIn", "RemoteOK", "Arbeitnow", "AI Discovery"];
-    } catch {
-      return ["LinkedIn", "RemoteOK", "Arbeitnow", "AI Discovery"];
-    }
+    try { return saved ? JSON.parse(saved) : ["LinkedIn", "RemoteOK", "Arbeitnow", "AI Discovery"]; }
+    catch { return ["LinkedIn", "RemoteOK", "Arbeitnow", "AI Discovery"]; }
   });
   const [selectedAI, setSelectedAI] = useState(() => localStorage.getItem("jobpilot_selectedAI") || "Ollama (Local)");
   const [aiBackends, setAiBackends] = useState([
@@ -109,48 +131,17 @@ export default function JobPilot() {
   const [selectedAutofillJob, setSelectedAutofillJob] = useState<Job | null>(null);
   const [automationModes, setAutomationModes] = useState(() => {
     const saved = localStorage.getItem("jobpilot_automationModes");
-    try {
-      return saved ? JSON.parse(saved) : {
-        "Review Before Submit": true,
-        "Full Auto": false,
-        "Stealth Mode": true,
-      };
-    } catch {
-      return {
-        "Review Before Submit": true,
-        "Full Auto": false,
-        "Stealth Mode": true,
-      };
-    }
+    try { return saved ? JSON.parse(saved) : { "Review Before Submit": true, "Full Auto": false, "Stealth Mode": true }; }
+    catch { return { "Review Before Submit": true, "Full Auto": false, "Stealth Mode": true }; }
   });
   const [automation, setAutomation] = useState(() => {
     const saved = localStorage.getItem("jobpilot_automation");
-    try {
-      return saved ? JSON.parse(saved) : {
-        "Playwright Headless": true,
-        "Human-like Delays": true,
-        "Auto-track on Apply": true,
-        "Email Notifications": false,
-      };
-    } catch {
-      return {
-        "Playwright Headless": true,
-        "Human-like Delays": true,
-        "Auto-track on Apply": true,
-        "Email Notifications": false,
-      };
-    }
+    try { return saved ? JSON.parse(saved) : { "Playwright Headless": true, "Human-like Delays": true, "Auto-track on Apply": true, "Email Notifications": false }; }
+    catch { return { "Playwright Headless": true, "Human-like Delays": true, "Auto-track on Apply": true, "Email Notifications": false }; }
   });
-  const [profile, setProfile] = useState({
-    Name: "",
-    "Current Role": "",
-    "Target Market": "",
-    "Years of Exp.": "",
-  });
+  const [profile, setProfile] = useState({ Name: "", "Current Role": "", "Target Market": "", "Years of Exp.": "" });
   const [fieldMappings, setFieldMappings] = useState<[string, string, string][]>([
-    ["Full Name", "...", "○"],
-    ["Email", "...", "○"],
-    ["Experience", "...", "○"],
+    ["Full Name", "...", "○"], ["Email", "...", "○"], ["Experience", "...", "○"],
   ]);
   const [trackerJobs, setTrackerJobs] = useState<Job[]>([]);
   const [cvFile, setCvFile] = useState<File | null>(null);
@@ -158,12 +149,11 @@ export default function JobPilot() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addLog = (type: string, prefix: string, msg: string) => {
-    const now = new Date();
-    const time = now.toTimeString().slice(0, 8);
+    const time = new Date().toTimeString().slice(0, 8);
     setLogs(l => [...l, { time, type, prefix, msg }]);
   };
 
-  // Persistence Watchers
+  /* ── Persistence ── */
   useEffect(() => { localStorage.setItem("jobpilot_role", role); }, [role]);
   useEffect(() => { localStorage.setItem("jobpilot_region", region); }, [region]);
   useEffect(() => { localStorage.setItem("jobpilot_companyFilter", companyFilter); }, [companyFilter]);
@@ -175,28 +165,17 @@ export default function JobPilot() {
   useEffect(() => { localStorage.setItem("jobpilot_automation", JSON.stringify(automation)); }, [automation]);
 
   const toggleBoard = (board: string) => {
-    setActiveBoards(prev =>
-      prev.includes(board) ? prev.filter(b => b !== board) : [...prev, board]
-    );
+    setActiveBoards(prev => prev.includes(board) ? prev.filter(b => b !== board) : [...prev, board]);
   };
 
   useEffect(() => {
-    // Load profile AND persisted jobs from backend on startup
     const loadInitialData = async () => {
-      // 1. Load profile
       const data = await getProfile();
       if (data) {
-        setProfile({
-          Name: data.name || "User",
-          "Current Role": data.currentRole || "Software Engineer",
-          "Target Market": data.targetMarket || "Global",
-          "Years of Exp.": data.yearsOfExperience || "5",
-        });
+        setProfile({ Name: data.name || "User", "Current Role": data.currentRole || "Software Engineer", "Target Market": data.targetMarket || "Global", "Years of Exp.": data.yearsOfExperience || "5" });
         if (data.skills) setSkills(data.skills);
-        if (data.aiBackends && data.aiBackends.length > 0) setAiBackends(data.aiBackends);
+        if (data.aiBackends?.length > 0) setAiBackends(data.aiBackends);
       }
-
-      // 2. Load previously saved jobs (persists across refresh/restart)
       const saved = await getAllJobs();
       if (saved.length > 0) {
         setJobs(saved);
@@ -207,71 +186,36 @@ export default function JobPilot() {
     loadInitialData();
   }, []);
 
+  /* ── Search ── */
   const runSearch = async () => {
-    if (activeBoards.length === 0) {
-      addLog("error", "ERROR", "Select at least one job board before searching.");
-      return;
-    }
-    setSearching(true);
-    // Do NOT wipe existing jobs — new results will be merged in
-    setSelectedJob(null);
+    if (activeBoards.length === 0) { addLog("error", "ERROR", "Select at least one job board."); return; }
+    setSearching(true); setSelectedJob(null);
     addLog("info", "SEARCH", `Starting discovery for "${role}" in ${region}...`);
     if (companyFilter) addLog("info", "FILTER", `Company filter: ${companyFilter}`);
     if (siteFilter) addLog("info", "FILTER", `Site filter: ${siteFilter}`);
     addLog("info", "FILTER", `Date range: ${dateFilter}`);
-
     try {
-      const results = await searchRealJobs(
-        role,
-        region,
-        activeBoards,
-        [], // customPortalIds (can be added later)
-        dateFilter,
+      const results = await searchRealJobs(role, region, activeBoards, [], dateFilter,
         (job: Job) => {
           setJobs(prev => {
-            const filteredJob = (!companyFilter || job.company.toLowerCase().includes(companyFilter.toLowerCase())) &&
-                                (!siteFilter || job.source.toLowerCase().includes(siteFilter.toLowerCase()));
-            if (filteredJob) {
-              return [...prev, job];
-            }
-            return prev;
+            const ok = (!companyFilter || job.company.toLowerCase().includes(companyFilter.toLowerCase())) && (!siteFilter || job.source.toLowerCase().includes(siteFilter.toLowerCase()));
+            return ok ? [...prev, job] : prev;
           });
-        },
-        addLog
-      );
-
+        }, addLog);
       if (results.length > 0) {
         addLog("ai", "RANK-AI", "Deduplicating results across boards...");
-        const dedupedResults = await dedupeJobsWithAI(results, addLog);
-
-        const searchProfile = { 
-          Name: profile.Name || "User", 
-          "Current Role": profile["Current Role"] || role, 
-          "Target Market": profile["Target Market"] || region, 
-          "Years of Exp.": profile["Years of Exp."] || "5" 
-        };
-        addLog("ai", "RANK-AI", `Scoring ${dedupedResults.length} results against profile...`);
-        const scoredResults = await scoreJobsWithAI(dedupedResults, searchProfile, selectedAI, aiBackends, addLog);
-        
-        // Merge: keep existing (DB-loaded) jobs, add new scored results (dedupe by id)
+        const deduped = await dedupeJobsWithAI(results, addLog);
+        const searchProfile = { Name: profile.Name || "User", "Current Role": profile["Current Role"] || role, "Target Market": profile["Target Market"] || region, "Years of Exp.": profile["Years of Exp."] || "5" };
+        addLog("ai", "RANK-AI", `Scoring ${deduped.length} results against profile...`);
+        const scored = await scoreJobsWithAI(deduped, searchProfile, selectedAI, aiBackends, addLog);
         setJobs(prev => {
           const existingIds = new Set(prev.map(j => j.id));
-          const fresh = scoredResults.filter((j: Job) => !existingIds.has(j.id));
-          return [...scoredResults, ...prev.filter(j => !scoredResults.find((s: Job) => s.id === j.id))];
+          return [...scored, ...prev.filter(j => !scored.find((s: Job) => s.id === j.id))];
         });
-
-        const count = scoredResults.length;
-        const strongCount = scoredResults.filter((j: Job) => (j.score || 0) >= 90).length;
-        addLog("success", "DONE", `Found ${count} ranked results. ${strongCount} strong match${strongCount !== 1 ? "es" : ""} flagged. ✓`);
-      } else {
-        addLog("success", "DONE", "Search completed but no jobs were found matching the filters.");
-      }
-    } catch (err: any) {
-      addLog("error", "ERROR", `Search failed: ${err.message}`);
-    } finally {
-      setSearching(false);
-      setTab("results");
-    }
+        addLog("success", "DONE", `Found ${scored.length} ranked results. ${scored.filter((j: Job) => (j.score || 0) >= 90).length} strong matches. ✓`);
+      } else { addLog("success", "DONE", "Search completed but no jobs found."); }
+    } catch (err: any) { addLog("error", "ERROR", `Search failed: ${err.message}`); }
+    finally { setSearching(false); setTab("results"); }
   };
 
   const filteredJobs = filterStatus === "All" ? jobs : jobs.filter(j => j.status === filterStatus);
@@ -280,909 +224,758 @@ export default function JobPilot() {
     setJobs(j => j.map(job => job.id === id ? { ...job, status } : job));
     setTrackerJobs(j => j.map(job => job.id === id ? { ...job, status } : job));
     if (selectedJob?.id === id) setSelectedJob(s => s ? { ...s, status } : s);
-    // Persist to DB so status survives page refresh
     updateJobStatus(id, status).catch(() => {});
     addLog("success", "TRACK", `Job #${id} moved to "${status}"`);
   };
 
   const computedStats = Object.keys(STATUS_COLORS).map(label => ({
-    label,
-    value: trackerJobs.filter(j => j.status === label).length,
-    color: label === "Discovered" ? "#64748b" : label === "Saved" ? "#0ea5e9" : label === "Applied" ? "#8b5cf6" : label === "Interview" ? "#f59e0b" : label === "Offer" ? "#10b981" : "#ef4444",
+    label, value: trackerJobs.filter(j => j.status === label).length,
+    color: STATUS_COLORS[label].text,
   }));
 
   const runAutofill = async () => {
-    setAutofillRunning(true);
-    setAutofillDone(false);
+    setAutofillRunning(true); setAutofillDone(false);
     addLog("info", "AUTO-FILL", `Starting auto-fill for: ${targetUrl || selectedAutofillJob?.title || "selected job"}...`);
-    
     try {
       const mapping = await mapFieldsWithAI(profile, selectedAutofillJob, selectedAI, aiBackends, addLog);
       setFieldMappings(mapping);
-      
       addLog("ai", "MAP", `Mapped ${mapping.length} fields from your profile.`);
-      
-      if (automationModes["Review Before Submit"]) {
-        addLog("info", "REVIEW", "Pausing for review — Review Before Submit mode active.");
-      } else {
-        addLog("ai", "SUBMIT", "Submitting application via Playwright...");
-      }
-      
+      if (automationModes["Review Before Submit"]) { addLog("info", "REVIEW", "Pausing for review — Review Before Submit mode active."); }
+      else { addLog("ai", "SUBMIT", "Submitting application via Playwright..."); }
       addLog("success", "DONE", "Auto-fill complete. Check form before submitting. ✓");
       setAutofillDone(true);
-      if (selectedAutofillJob) {
-        updateStatus(selectedAutofillJob.id, "Applied");
-      }
-    } catch (err: any) {
-      addLog("error", "ERROR", `Auto-fill failed: ${err.message}`);
-    } finally {
-      setAutofillRunning(false);
-    }
+      if (selectedAutofillJob) updateStatus(selectedAutofillJob.id, "Applied");
+    } catch (err: any) { addLog("error", "ERROR", `Auto-fill failed: ${err.message}`); }
+    finally { setAutofillRunning(false); }
   };
-
-  const TABS = [
-    { id: "dashboard", label: "Dashboard", icon: "▦" },
-    { id: "discover",  label: "Discover",  icon: "◎" },
-    { id: "results",   label: "Results",   icon: "≡", count: jobs.length || null },
-    { id: "tracker",   label: "Tracker",   icon: "◈" },
-    { id: "autofill",  label: "Auto-Fill", icon: "✦" },
-    { id: "settings",  label: "Settings",  icon: "⚙" },
-  ];
 
   const updateBackend = (name: string, field: "model" | "url" | "apiKey", value: string) => {
     setAiBackends(prev => prev.map(b => b.name === name ? { ...b, [field]: value } : b));
   };
 
+  /* ── Computed Dashboard Data ── */
+  const total = trackerJobs.length;
+  const avgScore = total > 0 ? Math.round(trackerJobs.reduce((a, j) => a + (j.score || 0), 0) / total) : 0;
+  const interviews = trackerJobs.filter(j => j.status === "Interview").length;
+  const offers = trackerJobs.filter(j => j.status === "Offer").length;
+  const applied = trackerJobs.filter(j => j.status === "Applied").length;
+  const responseRate = total > 0 ? Math.round(((interviews + offers) / Math.max(applied + interviews + offers, 1)) * 100) : 0;
 
+  const TABS = [
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "discover",  label: "Discover",  icon: Compass },
+    { id: "results",   label: "Results",   icon: List },
+    { id: "tracker",   label: "Tracker",   icon: Activity },
+    { id: "autofill",  label: "Auto-Fill", icon: Wand2 },
+    { id: "settings",  label: "Settings",  icon: Settings },
+  ];
+
+  /* ════════════════════════════════════════════ */
+  /*                    RENDER                    */
+  /* ════════════════════════════════════════════ */
 
   return (
-    <div className="min-h-screen text-slate-100 flex flex-col font-sans relative z-0">
-      {/* Mesh Background */}
-      <div className="mesh-bg"></div>
+    <div className="min-h-screen flex relative z-10">
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 px-6 py-4 border-b border-white/10 bg-slate-950/40 backdrop-blur-xl flex items-center gap-6 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-xl shadow-lg shadow-sky-500/20 text-white font-bold">
-            ✦
+      {/* ─── SIDEBAR ─── */}
+      <aside className="w-[240px] shrink-0 h-screen sticky top-0 flex flex-col border-r border-white/5 bg-[#0D1017] z-30">
+        {/* Logo */}
+        <div className="px-6 pt-7 pb-6 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-blue-500/20">
+            J
           </div>
-          <span className="font-bold text-xl tracking-tight">
-            Job<span className="text-sky-400">Pilot</span>
+          <span className="font-bold text-base text-zinc-100 tracking-tight">
+            JobPilot
           </span>
-          <span className="text-xs text-slate-400 font-mono bg-slate-900/50 px-2 py-1 rounded-md border border-white/5">
-            v2.0
-          </span>
+          <span className="text-[9px] text-zinc-500 font-mono ml-1 px-1.5 py-0.5 rounded bg-white/5">v2</span>
         </div>
-        <div className="flex-1" />
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          {selectedAI === "Claude (Anthropic)" ? "Claude Sonnet 4" : selectedAI} · Active
+
+        {/* Nav */}
+        <nav className="flex-1 px-3 flex flex-col gap-1">
+          {TABS.map(t => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`relative flex items-center gap-3 px-4 py-3 rounded-lg text-[13px] font-medium transition-all duration-150 border border-transparent cursor-pointer ${
+                  active ? "nav-active" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900"
+                }`}
+              >
+                <t.icon size={16} strokeWidth={active ? 2.2 : 1.8} />
+                {t.label}
+                {t.id === "results" && jobs.length > 0 && (
+                  <span className="ml-auto text-[10px] font-mono font-bold text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">{jobs.length}</span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Sidebar bottom – status */}
+        <div className="px-4 py-4 mt-auto">
+          <div className="bg-[#11141C] border border-white/5 rounded-xl p-3 cursor-pointer hover:bg-[#161B22] transition-colors flex items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-zinc-200">{selectedAI}</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" style={{ animation: "pulse-dot 2s infinite" }} />
+                <span className="text-[10px] text-emerald-400 font-medium">Connected</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-white/5 transition-colors">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+              </div>
+              <ChevronDown size={14} className="text-zinc-500" />
+            </div>
+          </div>
         </div>
-        <div className="w-px h-5 bg-white/10" />
-        <div className="text-sm font-medium text-slate-300">
-          {profile.Name} {profile["Current Role"] ? <span className="text-slate-500">· {profile["Current Role"]}</span> : ""} {profile["Target Market"] ? <span className="text-sky-400">→ {profile["Target Market"]}</span> : ""}
-        </div>
-      </header>
+      </aside>
 
-      {/* Nav */}
-      <div className="flex gap-2 px-8 pt-6 pb-0 overflow-x-auto">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-t-xl text-sm font-medium transition-all duration-300 ease-out border-b-2 ${
-              tab === t.id
-                ? "bg-white/10 text-sky-400 border-sky-400 backdrop-blur-md"
-                : "bg-transparent text-slate-400 border-transparent hover:bg-white/5 hover:text-slate-200"
-            }`}
-          >
-            <span>{t.icon}</span> {t.label}
-            {t.count ? (
-              <span className="bg-sky-500/20 text-sky-300 text-[10px] font-bold rounded-full px-2 py-0.5 border border-sky-500/30">
-                {t.count}
-              </span>
-            ) : null}
-          </button>
-        ))}
-      </div>
+      {/* ─── MAIN CONTENT ─── */}
+      <main className="flex-1 min-w-0 overflow-y-auto">
+        <div className="max-w-[1200px] mx-auto px-8 md:px-12 py-10">
 
-      {/* Content */}
-      <div style={{ flex: 1, padding: 28, maxWidth: 1100, width: "100%", margin: "0 auto" }}>
+          {/* ═══ DASHBOARD ═══ */}
+          {tab === "dashboard" && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="animate-fade-in-up">
+              <div className="mb-10">
+                <p className="text-[11px] text-blue-400 font-semibold tracking-widest uppercase mb-2">Dashboard</p>
+                <h1 className="text-3xl font-bold tracking-tight text-zinc-100">
+                  {profile.Name ? `Welcome back, ${profile.Name}` : "Welcome"}
+                </h1>
+                <p className="text-sm text-zinc-500 mt-2">Here's your career pipeline at a glance.</p>
+              </div>
 
-        {/* ─── DASHBOARD ─── */}
-        {tab === "dashboard" && (() => {
-          const total = trackerJobs.length;
-          const avgScore = Math.round(trackerJobs.reduce((a, j) => a + (j.score || 0), 0) / total);
-          const interviews = trackerJobs.filter(j => j.status === "Interview").length;
-          const offers = trackerJobs.filter(j => j.status === "Offer").length;
-          const applied = trackerJobs.filter(j => j.status === "Applied").length;
-          const responseRate = total > 0 ? Math.round(((interviews + offers) / Math.max(applied + interviews + offers, 1)) * 100) : 0;
-
-          const pipeline = [
-            { label: "Discovered", count: trackerJobs.filter(j => j.status === "Discovered").length, color: "#64748b", accent: "rgba(100,116,139,0.15)" },
-            { label: "Saved",      count: trackerJobs.filter(j => j.status === "Saved").length,      color: "#0ea5e9", accent: "rgba(14,165,233,0.12)" },
-            { label: "Applied",    count: applied,                                                    color: "#8b5cf6", accent: "rgba(139,92,246,0.15)" },
-            { label: "Interview",  count: interviews,                                                 color: "#f59e0b", accent: "rgba(245,158,11,0.15)" },
-            { label: "Offer",      count: offers,                                                     color: "#10b981", accent: "rgba(16,185,129,0.15)" },
-            { label: "Rejected",   count: trackerJobs.filter(j => j.status === "Rejected").length,   color: "#ef4444", accent: "rgba(239,68,68,0.1)" },
-          ];
-          const maxCount = Math.max(...pipeline.map(p => p.count), 1);
-
-          const sources = trackerJobs.reduce((acc, j) => { acc[j.source] = (acc[j.source] || 0) + 1; return acc; }, {} as Record<string, number>);
-          const sourceList = Object.entries(sources).sort((a, b) => b[1] - a[1]);
-          const maxSource = Math.max(...sourceList.map(s => s[1]), 1);
-
-          const topMatches = [...trackerJobs].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 3);
-
-          const kpis = [
-            { label: "Total Tracked", value: String(total),           sub: "across all stages",      color: "#38bdf8", icon: "◈" },
-            { label: "Avg Match Score", value: `${avgScore}`,         sub: "against your profile",   color: avgScore >= 85 ? "#10b981" : "#f59e0b", icon: "◎" },
-            { label: "Interviews",    value: String(interviews),      sub: "active conversations",   color: "#f59e0b", icon: "◆" },
-            { label: "Response Rate", value: `${responseRate}%`,      sub: "applied → interview",    color: responseRate >= 30 ? "#10b981" : "#8b5cf6", icon: "↑" },
-          ];
-
-          return (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              {/* Greeting */}
-              <div className="mb-8 flex items-end justify-between">
-                <div>
-                  <div className="text-xs text-sky-400 font-bold tracking-widest uppercase mb-1">Good afternoon</div>
-                  <h2 className="text-3xl font-bold m-0 tracking-tight text-white">{profile.Name} <span className="text-slate-400 font-normal text-2xl">— here's your search</span></h2>
+              {total === 0 ? (
+                /* Empty state */
+                <div className="flex flex-col items-center justify-center py-28 text-center">
+                  <div className="w-24 h-24 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-8">
+                    <Rocket size={36} className="text-blue-400" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-zinc-200 mb-3">Your career launchpad awaits</h3>
+                  <p className="text-zinc-500 max-w-md mb-10 text-base leading-relaxed">
+                    Discover top-tier roles matching your profile, track applications, and auto-fill forms with AI.
+                  </p>
+                  <button onClick={() => setTab("discover")} className="btn-primary flex items-center gap-2 text-base px-8 py-3">
+                    Start Discovering <ArrowUpRight size={18} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setTab("discover")}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-md text-white font-semibold text-sm cursor-pointer transition-all shadow-[0_4px_24px_rgba(0,0,0,0.2)] hover:shadow-[0_4px_24px_rgba(56,189,248,0.2)]"
-                >
-                  <span className="text-sky-400">◎</span> New Search
+              ) : (
+                <div className="flex flex-col gap-8">
+                  {/* KPI row */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+                    {[
+                      { label: "Tracked", value: total, color: "#c4b5fd", icon: LayoutDashboard },
+                      { label: "Avg Score", value: avgScore, color: avgScore >= 85 ? "#6ee7b7" : "#fbbf24", icon: Activity },
+                      { label: "Interviews", value: interviews, color: "#fcd34d", icon: Briefcase },
+                      { label: "Response", value: `${responseRate}%`, color: responseRate >= 30 ? "#6ee7b7" : "#c4b5fd", icon: TrendingUp },
+                    ].map(k => (
+                      <div key={k.label} className="surface-elevated p-6 group hover:border-zinc-700 transition-colors">
+                        <div className="flex items-center justify-between mb-4">
+                          <span className="text-[11px] text-zinc-500 font-semibold tracking-wider uppercase">{k.label}</span>
+                          <k.icon size={18} className="text-zinc-600 group-hover:text-zinc-400 transition-colors" />
+                        </div>
+                        <div className="text-4xl font-bold font-mono tabular-nums tracking-tight" style={{ color: k.color }}>{k.value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Pipeline + source */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <div className="surface-elevated p-7">
+                      <div className="text-xs font-semibold text-zinc-400 mb-5 tracking-wider uppercase">Pipeline</div>
+                      <div className="flex flex-col gap-4">
+                        {Object.entries(STATUS_COLORS).map(([label, colors]) => {
+                          const count = trackerJobs.filter(j => j.status === label).length;
+                          const maxC = Math.max(...Object.keys(STATUS_COLORS).map(l => trackerJobs.filter(j => j.status === l).length), 1);
+                          return (
+                            <div key={label}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-zinc-500">{label}</span>
+                                <span className="text-xs font-mono font-semibold" style={{ color: colors.text }}>{count}</span>
+                              </div>
+                              <div className="h-1 bg-zinc-800/80 rounded-full overflow-hidden">
+                                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(count / maxC) * 100}%`, background: colors.text }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="surface-elevated p-7">
+                      <div className="text-xs font-semibold text-zinc-400 mb-5 tracking-wider uppercase">Top Matches</div>
+                      <div className="flex flex-col gap-3">
+                        {[...trackerJobs].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 4).map(job => (
+                          <div
+                            key={job.id}
+                            onClick={() => { setSelectedJob(job); setTab("results"); }}
+                            className="surface-interactive p-4 flex items-center gap-4 cursor-pointer"
+                          >
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold font-mono shrink-0" style={{ background: `${job.color}12`, border: `1px solid ${job.color}25`, color: job.color }}>{job.logo}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-semibold text-zinc-300 truncate">{job.title}</div>
+                              <div className="text-[11px] text-zinc-600 truncate">{job.company}</div>
+                            </div>
+                            <div className="text-lg font-bold font-mono tabular-nums" style={{ color: (job.score || 0) >= 90 ? "#34d399" : (job.score || 0) >= 80 ? "#fbbf24" : "#f87171" }}>{job.score || 0}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ═══ DISCOVER ═══ */}
+          {tab === "discover" && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-8">
+              
+              <div className="flex items-center justify-between">
+                <h2 className="text-[26px] font-bold tracking-tight text-zinc-100">
+                  Job Discovery <span className="text-emerald-400 font-normal">Agent</span>
+                </h2>
+                <div className="flex gap-1.5 text-xs font-semibold">
+                  <span className="px-4 py-1.5 rounded-full border border-teal-500/30 bg-teal-500/10 text-teal-400">API</span>
+                  <span className="px-4 py-1.5 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-500/25 border border-blue-500">Browser</span>
+                  <span className="px-4 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-400">AI</span>
+                </div>
+              </div>
+
+              {/* Main Search Panel */}
+              <div className="surface-elevated p-8">
+                
+                {/* Form Grid - Row 1: Target Role + Region */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
+                  {/* Target Role - 7 cols */}
+                  <div className="col-span-7 bg-[#1A1F2E] border border-white/[0.06] rounded-2xl p-6">
+                    <label className="flex items-center gap-2 text-[11px] text-zinc-400 font-bold tracking-widest uppercase mb-4">
+                      <User size={13} className="text-zinc-500" /> Target Role
+                    </label>
+                    <div className="bg-[#0F1219] border border-white/[0.06] rounded-xl flex items-center px-4 py-1">
+                      <User size={15} className="text-zinc-600 shrink-0" />
+                      <input value={role} onChange={e => setRole(e.target.value)} placeholder="e.g. GenAI Architect" className="input-base bg-transparent border-none focus:ring-0 focus:box-shadow-none px-3 py-3" />
+                    </div>
+                  </div>
+
+                  {/* Region - 5 cols */}
+                  <div className="col-span-5 bg-[#1A1F2E] border border-white/[0.06] rounded-2xl p-6">
+                    <label className="flex items-center gap-2 text-[11px] text-zinc-400 font-bold tracking-widest uppercase mb-4">
+                      <Globe size={13} className="text-zinc-500" /> Region / Market
+                    </label>
+                    <div className="bg-[#0F1219] border border-white/[0.06] rounded-xl flex items-center px-4 py-1">
+                      <Globe size={15} className="text-zinc-600 shrink-0" />
+                      <input value={region} onChange={e => setRegion(e.target.value)} placeholder="e.g. Gulf / GCC" className="input-base bg-transparent border-none focus:ring-0 focus:box-shadow-none px-3 py-3" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Form Grid - Row 2: Company + Site + Date */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  {/* Company */}
+                  <div className="bg-[#1A1F2E] border border-white/[0.06] rounded-2xl p-6">
+                    <label className="flex items-center gap-2 text-[11px] text-zinc-400 font-bold tracking-widest uppercase mb-4">
+                      <Building2 size={13} className="text-zinc-500" /> Company
+                    </label>
+                    <div className="bg-[#0F1219] border border-white/[0.06] rounded-xl flex items-center px-4 py-1">
+                      <Building2 size={15} className="text-zinc-600 shrink-0" />
+                      <input value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} placeholder="e.g. G42, ADNOC" className="input-base bg-transparent border-none focus:ring-0 focus:box-shadow-none px-3 py-3" />
+                    </div>
+                  </div>
+
+                  {/* Site */}
+                  <div className="bg-[#1A1F2E] border border-white/[0.06] rounded-2xl p-6">
+                    <label className="flex items-center gap-2 text-[11px] text-zinc-400 font-bold tracking-widest uppercase mb-4">
+                      <Link size={13} className="text-zinc-500" /> Site
+                    </label>
+                    <div className="bg-[#0F1219] border border-white/[0.06] rounded-xl flex items-center px-4 py-1">
+                      <Link size={15} className="text-zinc-600 shrink-0" />
+                      <input value={siteFilter} onChange={e => setSiteFilter(e.target.value)} placeholder="e.g. greenhouse.io" className="input-base bg-transparent border-none focus:ring-0 focus:box-shadow-none px-3 py-3" />
+                    </div>
+                  </div>
+
+                  {/* Date */}
+                  <div className="bg-[#1A1F2E] border border-white/[0.06] rounded-2xl p-6">
+                    <label className="flex items-center gap-2 text-[11px] text-zinc-400 font-bold tracking-widest uppercase mb-4">
+                      <CalendarDays size={13} className="text-zinc-500" /> Date
+                    </label>
+                    <div className="bg-[#0F1219] border border-white/[0.06] rounded-xl flex items-center px-3 py-1">
+                      <CalendarDays size={15} className="text-zinc-600 shrink-0 ml-1" />
+                      <select value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="input-base bg-transparent border-none focus:ring-0 focus:box-shadow-none px-3 py-3 cursor-pointer text-zinc-300 font-medium appearance-none">
+                        {["Last 24 hours", "Last 7 days", "Last 14 days", "Last 30 days"].map(o => <option key={o} value={o} className="bg-[#0F1219]">{o}</option>)}
+                      </select>
+                      <ChevronDown size={14} className="text-zinc-500 shrink-0 mr-1" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Job Boards Selection */}
+                <div className="mb-8 flex gap-2 flex-wrap items-center">
+                  {[
+                    { id: "LinkedIn", color: "#0ea5e9", badge: "AP" },
+                    { id: "RemoteOK", color: "#10b981", badge: "AP" },
+                    { id: "Arbeitnow", color: "#8b5cf6", badge: "AP" },
+                    { id: "JSearch", color: "#f59e0b", badge: "AP" },
+                    { id: "Indeed", color: "#6b7280", badge: "Browser" },
+                    { id: "Naukri", color: "#f97316", badge: "Browser" },
+                    { id: "Hirect", color: "#6366f1", badge: "Browser" },
+                    { id: "InstaHyre", color: "#10b981", badge: "Browser" },
+                  ].map(b => {
+                    const active = activeBoards.includes(b.id);
+                    return (
+                      <button
+                        key={b.id}
+                        onClick={() => toggleBoard(b.id)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-medium cursor-pointer transition-all duration-200 select-none"
+                        style={{
+                          background: active ? `${b.color}20` : "transparent",
+                          border: `1px solid ${active ? `${b.color}50` : "rgba(255,255,255,0.08)"}`,
+                          color: active ? "#f1f5f9" : "#71717a",
+                        }}
+                      >
+                        <span 
+                          className="w-2 h-2 rounded-full shrink-0 inline-block"
+                          style={{ background: active ? b.color : "#52525b" }}
+                        />
+                        <span>{b.id}</span>
+                        <span 
+                          className="text-[9px] font-semibold px-1.5 py-px rounded"
+                          style={{
+                            background: active ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
+                            color: active ? "#e2e8f0" : "#52525b",
+                          }}
+                        >{b.badge}</span>
+                      </button>
+                    );
+                  })}
+                  
+                  {/* AI Discovery Special Button */}
+                  <button
+                    onClick={() => toggleBoard("AI Discovery")}
+                    className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[11px] font-bold cursor-pointer transition-all duration-200 select-none"
+                    style={{
+                      background: activeBoards.includes("AI Discovery") ? "#2563eb" : "transparent",
+                      border: `1px solid ${activeBoards.includes("AI Discovery") ? "#3b82f6" : "rgba(255,255,255,0.08)"}`,
+                      color: activeBoards.includes("AI Discovery") ? "#ffffff" : "#71717a",
+                      boxShadow: activeBoards.includes("AI Discovery") ? "0 4px 12px rgba(37,99,235,0.3)" : "none",
+                    }}
+                  >
+                    <Sparkles size={12} /> AI Discovery
+                    <span 
+                      className="text-[9px] font-semibold px-1.5 py-px rounded"
+                      style={{
+                        background: activeBoards.includes("AI Discovery") ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.04)",
+                        color: activeBoards.includes("AI Discovery") ? "#ffffff" : "#52525b",
+                      }}
+                    >AI</span>
+                  </button>
+                </div>
+
+                {/* Launch Button */}
+                <button onClick={runSearch} disabled={searching} className="btn-primary flex items-center gap-3 px-10 py-4 text-[15px] font-bold rounded-xl">
+                  {searching
+                    ? <><span className="w-4 h-4 border-2 border-white/50 border-t-transparent rounded-full animate-spin" /> Searching…</>
+                    : <><Sparkles size={18} /> Launch Discovery Agent</>
+                  }
                 </button>
               </div>
 
-              {/* KPI row */}
-              <div className="grid grid-cols-4 gap-4 mb-6">
-                {kpis.map(k => (
-                  <div key={k.label} className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-lg relative overflow-hidden group hover:border-white/20 transition-all">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/5 to-transparent rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-sky-500/10 transition-colors" />
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs text-slate-400 font-bold tracking-widest uppercase">{k.label}</span>
-                      <span className="text-lg opacity-80" style={{ color: k.color }}>{k.icon}</span>
+              {/* Agent Log Panel */}
+              <div className="surface-elevated overflow-hidden flex flex-col" style={{ minHeight: "320px" }}>
+                <div className="px-7 py-5 border-b border-white/[0.06] flex items-center justify-between">
+                  <span className="text-[13px] font-bold text-zinc-300 uppercase tracking-wider">Agent Log</span>
+                  <button onClick={() => setLogs([])} className="text-[11px] text-zinc-500 hover:text-zinc-300 font-semibold flex items-center gap-1.5 transition-colors">
+                    <Trash2 size={12} /> Clear Log
+                  </button>
+                </div>
+                <div className="flex-1 p-0 overflow-y-auto bg-[#0B0F15]">
+                  <AgentLog logs={logs} />
+                </div>
+              </div>
+
+            </motion.div>
+          )}
+
+
+
+          {/* ═══ RESULTS ═══ */}
+          {tab === "results" && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+              <SectionHeader title="Ranked" highlight="Results">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-zinc-500">{jobs.length} jobs</span>
+                  {jobs.length > 0 && (
+                    <button onClick={async () => { if (window.confirm(`Clear all ${jobs.length} results?`)) { const ok = await clearAllJobs(); if (ok) { setJobs([]); setSelectedJob(null); addLog("success", "CLEAR", "All jobs cleared."); } }}} className="btn-danger text-[11px]">Clear All</button>
+                  )}
+                </div>
+              </SectionHeader>
+
+              {/* Filter pills */}
+              <div className="flex gap-3 mb-8 flex-wrap">
+                {["All", ...Object.keys(STATUS_COLORS)].map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setFilterStatus(s)}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-medium cursor-pointer transition-all duration-200 border ${
+                      filterStatus === s ? "shadow-lg shadow-black/20 border-violet-500/40 bg-violet-500/15 text-violet-300" : "bg-transparent border-zinc-800/60 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300 hover:bg-zinc-900/50"
+                    }`}
+                  >{s}</button>
+                ))}
+              </div>
+
+              {jobs.length === 0 ? (
+                <div className="surface-elevated text-center py-16 text-zinc-600">
+                  <Search size={36} className="mx-auto mb-3 text-zinc-700" />
+                  <p className="text-sm mb-4">Run the Discovery Agent first</p>
+                  <button onClick={() => setTab("discover")} className="btn-secondary text-sm">Go to Discover →</button>
+                </div>
+              ) : (
+                <div className="flex gap-6 items-start">
+                  {/* Job list */}
+                  <div className="flex-1 flex flex-col gap-3 min-w-0">
+                    {filteredJobs.length === 0 ? (
+                      <div className="surface text-center py-10 text-zinc-600 text-sm">No jobs with status "{filterStatus}"</div>
+                    ) : filteredJobs.map(job => (
+                      <div
+                        key={job.id}
+                        onClick={() => setSelectedJob(job)}
+                        className={`surface-interactive p-4 flex items-center gap-4 cursor-pointer ${selectedJob?.id === job.id ? "!border-violet-500/40 !bg-violet-500/5" : ""}`}
+                      >
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold font-mono shrink-0" style={{ background: `${job.color}10`, border: `1px solid ${job.color}25`, color: job.color }}>{job.logo}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                            <span className="text-sm font-semibold text-zinc-200 truncate">{job.title}</span>
+                            {(job.score || 0) >= 90 && <span className="chip bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px]">★ STRONG</span>}
+                            <Badge status={job.status} />
+                          </div>
+                          <div className="text-[11px] text-zinc-600 truncate">{job.company} · {job.location} · {job.posted}</div>
+                        </div>
+                        <div className="min-w-[100px]"><ScoreBar score={job.score || 0} /></div>
+                        <span className="text-[10px] text-zinc-600 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded font-mono shrink-0">{job.source}</span>
+                        <button
+                          onClick={async e => { e.stopPropagation(); const ok = await deleteJob(job.id); if (ok) { setJobs(p => p.filter(j => j.id !== job.id)); if (selectedJob?.id === job.id) setSelectedJob(null); addLog("info", "DELETE", `Job #${job.id} removed.`); }}}
+                          className="text-zinc-700 hover:text-red-400 cursor-pointer p-1 rounded transition-colors hover:bg-red-500/10 shrink-0"
+                        ><Trash2 size={14} /></button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Detail Panel */}
+                  {selectedJob && (
+                    <div className="w-[340px] shrink-0 surface-elevated p-6 h-fit sticky top-10">
+                      <div className="flex justify-between items-start mb-6">
+                        <div>
+                          <div className="font-bold text-lg text-zinc-100 leading-tight mb-1">{selectedJob.title}</div>
+                          <div className="text-zinc-400 text-sm">{selectedJob.company}</div>
+                        </div>
+                        <button onClick={() => setSelectedJob(null)} className="text-zinc-500 hover:text-zinc-200 cursor-pointer text-2xl p-0 bg-transparent border-none transition-colors">×</button>
+                      </div>
+                      <div className="mb-6">
+                        <div className="text-[11px] text-zinc-400 font-semibold tracking-widest uppercase mb-3">AI Match Analysis</div>
+                        <div className="text-sm text-zinc-300 leading-relaxed bg-zinc-900/60 rounded-xl p-5 border-l-2 border-l-violet-500 border border-zinc-800 shadow-inner">{selectedJob.match}</div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 mb-5">
+                        {[["Score", `${selectedJob.score}/100`], ["Location", selectedJob.location], ["Salary", selectedJob.salary], ["Source", selectedJob.source]].map(([k, v]) => (
+                          <div key={k} className="bg-zinc-900/60 rounded-xl p-3 border border-zinc-800">
+                            <div className="text-[9px] text-zinc-600 uppercase tracking-widest font-semibold mb-1">{k}</div>
+                            <div className="text-xs font-medium text-zinc-300 truncate">{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-[11px] text-zinc-400 font-semibold tracking-widest uppercase mb-3 mt-6">Update Status</div>
+                      <div className="flex flex-wrap gap-2.5 mb-8">
+                        {Object.keys(STATUS_COLORS).map(s => (
+                          <button
+                            key={s}
+                            onClick={() => updateStatus(selectedJob.id, s)}
+                            className="px-3 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer transition-all border"
+                            style={{ borderColor: selectedJob.status === s ? STATUS_COLORS[s].border : "rgba(255,255,255,0.08)", background: selectedJob.status === s ? STATUS_COLORS[s].bg : "transparent", color: selectedJob.status === s ? STATUS_COLORS[s].text : "#a1a1aa" }}
+                          >{s}</button>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => { setSelectedAutofillJob(selectedJob); setTargetUrl(selectedJob.url || ""); setTab("autofill"); }}
+                        className="btn-primary w-full flex items-center justify-center gap-2 text-sm"
+                      ><Wand2 size={14} /> Auto-Fill Application</button>
                     </div>
-                    <div className="text-4xl font-bold font-mono leading-none tracking-tighter" style={{ color: k.color }}>{k.value}</div>
-                    <div className="text-xs text-slate-500 mt-2 font-medium">{k.sub}</div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ═══ TRACKER ═══ */}
+          {tab === "tracker" && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+              <SectionHeader title="Application" highlight="Tracker">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-zinc-500">{trackerJobs.length} applications</span>
+                  {trackerJobs.length > 0 && (
+                    <button onClick={async () => { if (window.confirm(`Clear all?`)) { const ok = await clearAllJobs(); if (ok) { setTrackerJobs([]); setJobs([]); addLog("success", "CLEAR", "Cleared."); }}}} className="btn-danger text-[11px]">Clear All</button>
+                  )}
+                </div>
+              </SectionHeader>
+
+              {/* Status pills */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5 mb-10">
+                {computedStats.map(s => (
+                  <div key={s.label} className="surface-elevated text-center p-6 border-t-2" style={{ borderTopColor: s.color }}>
+                    <div className="text-3xl font-bold font-mono tabular-nums mb-1" style={{ color: s.color }}>{s.value}</div>
+                    <div className="text-[10px] text-zinc-500 mt-1 uppercase tracking-widest font-semibold">{s.label}</div>
                   </div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-2 gap-5 mb-5">
-                {/* Pipeline funnel */}
-                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
-                  <div className="text-sm font-bold text-slate-300 mb-5 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-sky-400" /> Application Pipeline
+              {/* Table */}
+              <div className="surface-elevated overflow-hidden overflow-x-auto rounded-2xl">
+                <table className="w-full border-collapse text-sm text-left">
+                  <thead>
+                    <tr className="border-b border-zinc-800/60 bg-zinc-900/30">
+                      {["Role", "Company", "Location", "Score", "Status", "Posted", "Actions"].map(h => (
+                        <th key={h} className="py-4 px-6 text-[10px] text-zinc-400 font-semibold uppercase tracking-widest">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trackerJobs.map((j, i) => (
+                      <tr key={j.id} className={`transition-colors hover:bg-zinc-800/30 ${i < trackerJobs.length - 1 ? "border-b border-zinc-800/40" : ""}`}>
+                        <td className="py-5 px-6 font-semibold text-zinc-200">{j.title}</td>
+                        <td className="py-5 px-6 text-zinc-400">{j.company}</td>
+                        <td className="py-5 px-6 text-zinc-500">{j.location}</td>
+                        <td className="py-5 px-6 w-[140px]"><ScoreBar score={j.score || 0} /></td>
+                        <td className="py-5 px-6"><Badge status={j.status} /></td>
+                        <td className="py-5 px-6 text-zinc-500 font-mono text-xs">{j.posted}</td>
+                        <td className="py-5 px-6">
+                          <div className="flex gap-2">
+                            <button onClick={() => { setSelectedJob(j); setTab("results"); }} className="btn-secondary text-xs px-3 py-1.5"><Eye size={14} /></button>
+                            <button onClick={() => { setSelectedAutofillJob(j); setTargetUrl(j.url || ""); setTab("autofill"); }} className="btn-secondary text-xs px-3 py-1.5"><Wand2 size={14} /></button>
+                            <button onClick={async () => { const ok = await deleteJob(j.id); if (ok) { setTrackerJobs(p => p.filter(jj => jj.id !== j.id)); setJobs(p => p.filter(jj => jj.id !== j.id)); }}} className="btn-danger text-xs px-2.5 py-1.5"><Trash2 size={14} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ═══ AUTO-FILL ═══ */}
+          {tab === "autofill" && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+              <SectionHeader title="Auto-Fill" highlight="Agent" />
+              <p className="text-zinc-500 text-sm -mt-5 mb-8">Upload your CV. The AI maps your profile to application form fields.</p>
+
+              {selectedAutofillJob && (
+                <div className="surface-elevated p-5 mb-8 flex items-center gap-4">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold font-mono" style={{ background: `${selectedAutofillJob.color}15`, border: `1px solid ${selectedAutofillJob.color}30`, color: selectedAutofillJob.color }}>{selectedAutofillJob.logo}</div>
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-zinc-200">{selectedAutofillJob.title} — {selectedAutofillJob.company}</div>
+                    <div className="text-[11px] text-violet-400">Pre-selected from results</div>
                   </div>
-                  <div className="flex flex-col gap-3">
-                    {pipeline.map((stage, i) => (
-                      <div key={stage.label} className="group">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full" style={{ background: stage.color }} />
-                            <span className="text-xs font-medium text-slate-400 group-hover:text-slate-200 transition-colors">{stage.label}</span>
-                          </div>
-                          <span className="text-xs font-bold font-mono" style={{ color: stage.color }}>{stage.count}</span>
-                        </div>
-                        <div className="h-1.5 bg-slate-900/50 rounded-full overflow-hidden border border-white/5">
-                          <div className="h-full rounded-full opacity-90 transition-all duration-1000 ease-out" style={{ width: `${(stage.count / maxCount) * 100}%`, background: stage.color, boxShadow: `0 0 10px ${stage.color}80` }} />
-                        </div>
-                        {i < pipeline.length - 1 && stage.count > 0 && pipeline[i + 1].count > 0 && (
-                          <div className="text-[10px] text-slate-500 mt-1 text-right font-mono font-medium">
-                            {Math.round((pipeline[i + 1].count / stage.count) * 100)}% → next
-                          </div>
-                        )}
+                  <button onClick={() => { setSelectedAutofillJob(null); setTargetUrl(""); }} className="text-zinc-600 hover:text-zinc-300 cursor-pointer text-lg bg-transparent border-none transition-colors">×</button>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="flex flex-col gap-6">
+                  {/* CV Upload */}
+                  <input type="file" ref={fileInputRef} accept=".pdf,.json" className="hidden" onChange={e => setCvFile(e.target.files?.[0] || null)} />
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`surface-interactive border-2 border-dashed border-zinc-700/50 hover:border-zinc-500 p-12 text-center cursor-pointer flex flex-col items-center justify-center min-h-[240px] rounded-2xl transition-all ${cvFile ? "!border-violet-500/40 !bg-violet-500/5" : ""}`}
+                  >
+                    <Upload size={40} className={`mb-5 ${cvFile ? "text-violet-400" : "text-zinc-500"}`} />
+                    <div className="text-lg font-semibold text-zinc-200 mb-2">{cvFile ? `CV Loaded — ${cvFile.name}` : "Drop your CV here"}</div>
+                    <div className="text-sm text-zinc-500">{cvFile ? "Click to replace" : "PDF or JSON resume · max 5MB"}</div>
+                    {!cvFile && <div className="mt-6 btn-secondary">Browse Files</div>}
+                  </div>
+
+                  {/* Field mapping */}
+                  <div className="surface-elevated p-8">
+                    <div className="text-[11px] text-zinc-400 font-semibold tracking-widest uppercase mb-5">Field Mapping</div>
+                    {fieldMappings.map(([field, val, st], idx) => (
+                      <div key={field} className={`flex items-center gap-4 py-3 ${idx < fieldMappings.length - 1 ? "border-b border-zinc-800/50" : ""}`}>
+                        <span className="w-4 text-center text-xs" style={{ color: st === "✓" ? "#34d399" : st === "⚠ check" ? "#fbbf24" : st === "✗ manual" ? "#f87171" : "#3f3f46" }}>{st}</span>
+                        <span className="text-xs text-zinc-500 w-24 shrink-0">{field}</span>
+                        <span className="text-xs font-semibold text-zinc-300 truncate">{val}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Source breakdown + top matches */}
-                <div className="flex flex-col gap-4">
-                  {/* Source breakdown */}
-                  <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
-                    <div className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-indigo-400" /> Source Breakdown
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      {sourceList.map(([src, cnt]) => (
-                        <div key={src} className="flex items-center gap-3">
-                          <span className="text-xs font-medium text-slate-400 w-20 shrink-0 truncate">{src}</span>
-                          <div className="flex-1 h-1.5 bg-slate-900/50 rounded-full overflow-hidden border border-white/5">
-                            <div className="h-full bg-gradient-to-r from-sky-400 to-indigo-500 rounded-full transition-all duration-700 shadow-[0_0_8px_rgba(56,189,248,0.5)]" style={{ width: `${(cnt / maxSource) * 100}%` }} />
-                          </div>
-                          <span className="text-xs font-bold text-sky-400 font-mono w-5 text-right">{cnt}</span>
-                        </div>
-                      ))}
+                <div className="flex flex-col gap-6">
+                  {/* Target URL */}
+                  <div className="surface-elevated p-8">
+                    <div className="text-[11px] text-zinc-400 font-semibold tracking-widest uppercase mb-4">Target Application</div>
+                    <input value={targetUrl} onChange={e => setTargetUrl(e.target.value)} placeholder="Paste job URL or select from results…" className="input-base mb-5" />
+                    {autofillDone && (
+                      <div className="px-3 py-2 bg-emerald-500/8 border border-emerald-500/20 rounded-lg text-xs font-semibold text-emerald-400 flex items-center gap-2 mb-3">
+                        <span>✓</span> Auto-fill complete — review before submitting
+                      </div>
+                    )}
+                    <div className="flex gap-3 mt-1">
+                      <button onClick={runAutofill} disabled={autofillRunning || (!targetUrl && !selectedAutofillJob)} className="btn-primary flex-1 flex items-center justify-center gap-2 text-sm">
+                        {autofillRunning ? <><span className="w-3.5 h-3.5 border-2 border-violet-300 border-t-transparent rounded-full animate-spin" /> Filling…</> : "▶ Start Auto-Fill"}
+                      </button>
+                      <button className="btn-secondary text-sm">Preview</button>
                     </div>
                   </div>
 
-                  {/* Score distribution mini */}
-                  <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
-                    <div className="text-sm font-bold text-slate-300 mb-4 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400" /> Score Distribution
-                    </div>
-                    <div className="flex items-end gap-1.5 h-16">
-                      {[...trackerJobs].sort((a, b) => (b.score || 0) - (a.score || 0)).map(j => {
-                        const barColor = (j.score || 0) >= 90 ? "#10b981" : (j.score || 0) >= 80 ? "#f59e0b" : "#ef4444";
-                        const barH = Math.round(((j.score || 0) / 100) * 44);
+                  {/* Automation Mode */}
+                  <div className="surface-elevated p-8">
+                    <div className="text-[11px] text-zinc-400 font-semibold tracking-widest uppercase mb-6">Automation Mode</div>
+                    <div className="flex flex-col gap-4">
+                      {(Object.entries(automationModes) as [string, boolean][]).map(([name, on]) => {
+                        const descs: Record<string, string> = { "Review Before Submit": "AI fills, you approve each section", "Full Auto": "AI fills and submits (risky)", "Stealth Mode": "Human-like delays + mouse moves" };
                         return (
-                          <div key={j.id} className="flex-1 flex flex-col items-center gap-1 group">
-                            <div className="w-full rounded-t-sm opacity-80 group-hover:opacity-100 transition-opacity relative" style={{ height: barH, background: barColor, boxShadow: `0 0 8px ${barColor}40` }}>
-                              <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                                {j.company}: {(j.score || 0)}
-                              </div>
+                          <div key={name} className="flex items-center gap-4">
+                            <Toggle on={on} onChange={() => setAutomationModes((prev: Record<string, boolean>) => ({ ...prev, [name]: !prev[name] }))} />
+                            <div>
+                              <div className={`text-sm font-semibold ${on ? "text-zinc-200" : "text-zinc-500"}`}>{name}</div>
+                              <div className="text-[11px] text-zinc-600">{descs[name]}</div>
                             </div>
-                            <div className="text-[9px] text-slate-500 font-mono">{(j.score || 0)}</div>
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Top Matches */}
-              <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-lg">
-                <div className="flex items-center justify-between mb-5">
-                  <div className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                    <span className="text-amber-400">★</span> Top Matches
-                  </div>
-                  <button onClick={() => setTab("results")} className="text-xs font-medium text-sky-400 hover:text-sky-300 transition-colors">View all →</button>
-                </div>
-                <div className="flex flex-col gap-3">
-                  {topMatches.map(job => (
-                    <div
-                      key={job.id}
-                      onClick={() => { setSelectedJob(job); setFilterStatus("All"); setTab("results"); }}
-                      className="flex items-center gap-4 p-3.5 bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 rounded-xl cursor-pointer transition-all duration-200 group"
-                    >
-                      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold font-mono shrink-0 shadow-inner" style={{ background: `${job.color}15`, border: `1px solid ${job.color}30`, color: job.color }}>
-                        {job.logo}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-slate-200 mb-0.5 truncate group-hover:text-sky-300 transition-colors">{job.title}</div>
-                        <div className="text-xs text-slate-400 truncate">{job.company} · {job.location}</div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <Badge status={job.status} />
-                        <div className="text-right">
-                          <div className="text-xl font-bold font-mono leading-none tracking-tighter" style={{ color: (job.score || 0) >= 90 ? "#10b981" : (job.score || 0) >= 80 ? "#f59e0b" : "#ef4444" }}>
-                            {(job.score || 0)}
-                          </div>
-                          <div className="text-[9px] text-slate-500 mt-1 uppercase tracking-wider font-bold">score</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* ─── DISCOVER ─── */}
-        {tab === "discover" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold m-0 mb-2 tracking-tight text-white">Job Discovery <span className="text-sky-400 font-normal">Agent</span></h2>
-              <p className="text-slate-400 text-sm m-0 mb-4">Hybrid pipeline: <b className="text-slate-300">API feeds</b> (instant, reliable) + <b className="text-slate-300">Browser</b> (deep scrape) + <b className="text-slate-300">AI Discovery</b> (web search + extraction). All links validated before saving.</p>
-              <div className="flex gap-4 flex-wrap">
-                {[["emerald-400", "API", "Direct feed — fast & reliable"], ["amber-400", "Browser", "Playwright scraper — may hit blocks"], ["indigo-400", "AI", "AI web search — always finds jobs"]].map(([color, label, desc]) => (
-                  <div key={label as string} className="flex items-center gap-2 text-xs text-slate-400">
-                    <span className={`bg-${color}/10 text-${color} rounded-md px-2 py-0.5 font-bold text-[10px]`}>{label}</span>
-                    <span>{desc}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              {[
-                { label: "Target Role", value: role, setter: setRole, placeholder: "e.g. GenAI Architect" },
-                { label: "Region / Market", value: region, setter: setRegion, placeholder: "e.g. Gulf / GCC" },
-              ].map(f => (
-                <div key={f.label} className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-lg focus-within:border-sky-500/50 transition-colors group">
-                  <label className="text-xs text-slate-400 font-bold tracking-widest uppercase block group-focus-within:text-sky-400 transition-colors">{f.label}</label>
-                  <input
-                    value={f.value}
-                    onChange={e => f.setter(e.target.value)}
-                    placeholder={f.placeholder}
-                    className="w-full bg-transparent border-none text-slate-100 text-base font-medium mt-1.5 focus:outline-none placeholder:text-slate-600"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-xl p-3.5 shadow-lg focus-within:border-sky-500/50 transition-colors group">
-                <label className="text-[10px] text-slate-400 font-bold tracking-widest uppercase block group-focus-within:text-sky-400 transition-colors">Company Filter</label>
-                <input value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} placeholder="e.g. G42, ADNOC…" className="w-full bg-transparent border-none text-slate-300 text-sm mt-1 focus:outline-none placeholder:text-slate-600" />
-              </div>
-              <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-xl p-3.5 shadow-lg focus-within:border-sky-500/50 transition-colors group">
-                <label className="text-[10px] text-slate-400 font-bold tracking-widest uppercase block group-focus-within:text-sky-400 transition-colors">Site Filter</label>
-                <input value={siteFilter} onChange={e => setSiteFilter(e.target.value)} placeholder="e.g. greenhouse.io" className="w-full bg-transparent border-none text-slate-300 text-sm mt-1 focus:outline-none placeholder:text-slate-600" />
-              </div>
-              <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-xl p-3.5 shadow-lg focus-within:border-sky-500/50 transition-colors group">
-                <label className="text-[10px] text-slate-400 font-bold tracking-widest uppercase block group-focus-within:text-sky-400 transition-colors">Date Posted</label>
-                <select value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="w-full bg-transparent border-none text-slate-300 text-sm mt-1 focus:outline-none cursor-pointer">
-                  {["Last 24 hours", "Last 7 days", "Last 14 days", "Last 30 days"].map(o => <option key={o} value={o} className="bg-slate-900">{o}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-2.5 mb-8 flex-wrap">
-              {[
-                { id: "LinkedIn",     label: "LinkedIn",     badge: "API",     color: "#0ea5e9" },
-                { id: "RemoteOK",     label: "RemoteOK",     badge: "API",     color: "#10b981" },
-                { id: "Arbeitnow",    label: "Arbeitnow",    badge: "API",     color: "#8b5cf6" },
-                { id: "JSearch",      label: "JSearch",      badge: "API",     color: "#f59e0b" },
-                { id: "Indeed",       label: "Indeed",       badge: "Browser", color: "#3b82f6" },
-                { id: "Naukri",       label: "Naukri",       badge: "Browser", color: "#f97316" },
-                { id: "Hirect",       label: "Hirect",       badge: "Browser", color: "#8b5cf6" },
-                { id: "InstaHyre",    label: "InstaHyre",    badge: "Browser", color: "#10b981" },
-                { id: "AI Discovery", label: "AI Discovery", badge: "AI",      color: "#818cf8" },
-              ].map(b => {
-                const active = activeBoards.includes(b.id);
-                const badgeColor = b.badge === "API" ? "#10b981" : b.badge === "AI" ? "#818cf8" : "#f59e0b";
-                return (
-                  <div
-                    key={b.id}
-                    onClick={() => toggleBoard(b.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-all duration-200 select-none border ${active ? 'backdrop-blur-md shadow-[0_0_10px_rgba(255,255,255,0.05)] hover:brightness-110' : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10'}`}
-                    style={active ? { borderColor: b.color, background: `${b.color}15`, color: b.color } : {}}
-                  >
-                    <span>{active ? "✓" : "○"}</span>
-                    <span>{b.label}</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold tracking-wider" style={{ background: `${badgeColor}22`, color: badgeColor }}>{b.badge}</span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={runSearch}
-              disabled={searching}
-              className={`flex items-center gap-2.5 px-8 py-3.5 rounded-xl border-none cursor-${searching ? "not-allowed" : "pointer"} font-bold text-sm text-white font-sans transition-all duration-300 ${searching ? "bg-slate-800 text-slate-400" : "bg-gradient-to-br from-sky-400 to-indigo-500 shadow-[0_0_20px_rgba(56,189,248,0.4)] hover:shadow-[0_0_30px_rgba(56,189,248,0.6)] hover:-translate-y-0.5"}`}
-            >
-              {searching
-                ? <><span className="w-4 h-4 border-2 border-sky-400 border-t-transparent rounded-full inline-block animate-spin" /> Searching...</>
-                : <><span className="text-sky-200">◎</span> Launch Discovery Agent</>
-              }
-            </button>
-
-            <div className="mt-8">
-              <div className="text-xs text-slate-400 mb-2 font-bold tracking-widest uppercase">Agent Log</div>
-              <AgentLog logs={logs} />
-            </div>
-          </div>
-        )}
-
-        {/* ─── RESULTS ─── */}
-        {tab === "results" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center gap-4 mb-6 flex-wrap">
-              <div>
-                <h2 className="text-3xl font-bold m-0 mb-1 tracking-tight text-white">Ranked <span className="text-sky-400 font-normal">Results</span></h2>
-                <p className="text-slate-400 text-sm m-0">
-                  {jobs.length} job{jobs.length !== 1 ? "s" : ""} · sorted by AI relevance score
-                  <span className="ml-3 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-wider">
-                    💾 Saved
-                  </span>
-                </p>
-              </div>
-              <div className="flex-1" />
-              <div className="flex gap-2 flex-wrap">
-                {["All", ...Object.keys(STATUS_COLORS)].map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setFilterStatus(s)}
-                    className={`px-3 py-1.5 rounded-full border text-xs cursor-pointer font-medium transition-all duration-200 ${filterStatus === s ? "border-sky-400 bg-sky-500/10 text-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.2)]" : "border-white/10 bg-white/5 text-slate-400 hover:bg-white/10"}`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-              {jobs.length > 0 && (
-                <button
-                  onClick={async () => { 
-                    if (window.confirm(`Clear all ${jobs.length} results from database?`)) { 
-                      const ok = await clearAllJobs();
-                      if (ok) {
-                        setJobs([]); 
-                        setSelectedJob(null); 
-                        addLog("success", "CLEAR", "All jobs cleared from database."); 
-                      } else {
-                        addLog("error", "ERROR", "Failed to clear jobs from database.");
-                      }
-                    } 
-                  }}
-                  className="px-3.5 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-xs cursor-pointer flex items-center gap-2 hover:bg-red-500/20 transition-colors"
-                >
-                  🗑 Clear All
-                </button>
-              )}
-            </div>
-
-            {jobs.length === 0 ? (
-              <div className="text-center p-16 text-slate-500 bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg">
-                <div className="text-5xl mb-4 text-sky-500/30">◎</div>
-                <div className="mb-4 text-sm">Run the Discovery Agent first</div>
-                <button onClick={() => setTab("discover")} className="px-5 py-2 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-400 cursor-pointer text-sm font-medium hover:bg-sky-500/20 transition-colors">→ Go to Discover</button>
-              </div>
-            ) : (
-              <div className="flex gap-5 items-start">
-                <div className="flex-1 flex flex-col gap-3 min-w-0">
-                  {filteredJobs.length === 0 ? (
-                    <div className="text-center p-10 text-slate-500 bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg">
-                      No jobs with status "{filterStatus}"
-                    </div>
-                  ) : filteredJobs.map(job => (
-                    <div
-                      key={job.id}
-                      onClick={() => setSelectedJob(job)}
-                      className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 ${selectedJob?.id === job.id ? "bg-slate-900/60 border border-sky-500/50 shadow-[0_0_20px_rgba(56,189,248,0.15)]" : "bg-slate-950/40 border border-white/5 hover:border-white/20 hover:bg-white/5 shadow-lg backdrop-blur-xl"}`}
-                    >
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold font-mono shrink-0 shadow-inner" style={{ background: `${job.color}15`, border: `1px solid ${job.color}30`, color: job.color }}>{job.logo}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 flex-wrap mb-1">
-                          <span className={`font-bold text-base transition-colors ${selectedJob?.id === job.id ? 'text-sky-300' : 'text-slate-200'}`}>{job.title}</span>
-                          {(job.score || 0) >= 90 && <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.2)]">★ STRONG MATCH</span>}
-                          <Badge status={job.status} />
-                        </div>
-                        <div className="text-xs text-slate-400 truncate">{job.company} · {job.location} · {job.posted}</div>
-                      </div>
-                      <div className="min-w-[120px]">
-                        <ScoreBar score={job.score || 0} />
-                        <div className="text-[10px] text-slate-500 mt-1.5 text-right font-medium">{job.salary}</div>
-                      </div>
-                      <div className="text-[10px] text-slate-400 bg-slate-900/50 border border-white/5 px-2.5 py-1 rounded-md whitespace-nowrap font-medium">{job.source}</div>
-                      <button
-                        onClick={async e => { 
-                          e.stopPropagation(); 
-                          const ok = await deleteJob(job.id);
-                          if (ok) {
-                            setJobs(prev => prev.filter(jj => jj.id !== job.id)); 
-                            if (selectedJob?.id === job.id) setSelectedJob(null); 
-                            addLog("info", "DELETE", `Job #${job.id} removed.`);
-                          } else {
-                            addLog("error", "ERROR", `Failed to delete job #${job.id}.`);
-                          }
-                        }}
-                        title="Remove"
-                        className="bg-transparent border-none text-slate-600 hover:text-red-400 cursor-pointer text-lg p-1.5 rounded-md leading-none shrink-0 transition-colors hover:bg-red-500/10"
-                      >🗑</button>
-                    </div>
-                  ))}
-                </div>
-
-                {selectedJob && (
-                  <div className="w-[340px] shrink-0 bg-slate-950/60 backdrop-blur-2xl border border-white/10 rounded-2xl p-6 h-fit shadow-2xl sticky top-[100px] animate-in slide-in-from-right-4 duration-300">
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-2xl pointer-events-none" />
-                    <div className="flex justify-between items-start mb-5 relative z-10">
-                      <div>
-                        <div className="font-bold text-lg text-slate-100 leading-tight mb-1">{selectedJob.title}</div>
-                        <div className="text-slate-400 text-xs font-medium">{selectedJob.company}</div>
-                      </div>
-                      <button onClick={() => setSelectedJob(null)} className="bg-transparent border-none text-slate-500 hover:text-slate-300 cursor-pointer text-2xl p-0 leading-none transition-colors">×</button>
-                    </div>
-                    <div className="mb-5 relative z-10">
-                      <div className="text-[10px] text-slate-400 mb-2 font-bold uppercase tracking-widest">AI Match Analysis</div>
-                      <div className="text-xs text-slate-300 leading-relaxed bg-black/20 rounded-xl p-3.5 border-l-2 border-l-sky-400 border border-white/5 shadow-inner">{selectedJob.match}</div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2.5 mb-5 relative z-10">
-                      {[["Score", `${selectedJob.score}/100`], ["Location", selectedJob.location], ["Salary", selectedJob.salary], ["Source", selectedJob.source]].map(([k, v]) => (
-                        <div key={k} className="bg-white/5 rounded-xl p-2.5 border border-white/5">
-                          <div className="text-[9px] text-slate-500 mb-1 uppercase tracking-widest font-bold">{k}</div>
-                          <div className="text-xs font-semibold text-slate-200 truncate">{v}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="text-[10px] text-slate-400 mb-2.5 font-bold uppercase tracking-widest relative z-10">Move to</div>
-                    <div className="flex flex-wrap gap-2 mb-6 relative z-10">
-                      {Object.keys(STATUS_COLORS).map(s => (
-                        <button
-                          key={s}
-                          onClick={() => updateStatus(selectedJob.id, s)}
-                          className="px-3 py-1.5 rounded-full text-[10px] font-bold cursor-pointer transition-all duration-200"
-                          style={{
-                            border: `1px solid ${selectedJob.status === s ? STATUS_COLORS[s].border : "rgba(255,255,255,0.1)"}`,
-                            background: selectedJob.status === s ? STATUS_COLORS[s].bg : "rgba(255,255,255,0.05)",
-                            color: selectedJob.status === s ? STATUS_COLORS[s].text : "#94a3b8",
-                            boxShadow: selectedJob.status === s ? `0 0 10px ${STATUS_COLORS[s].border}80` : "none"
-                          }}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedAutofillJob(selectedJob);
-                        setTargetUrl(selectedJob.url || "");
-                        setTab("autofill");
-                      }}
-                      className="w-full p-3.5 rounded-xl border-none bg-gradient-to-br from-sky-400 to-indigo-500 text-white font-bold text-sm cursor-pointer shadow-[0_4px_20px_rgba(56,189,248,0.3)] hover:shadow-[0_4px_25px_rgba(56,189,248,0.5)] hover:-translate-y-0.5 transition-all relative z-10"
-                    >
-                      ✦ Auto-Fill Application
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ─── TRACKER ─── */}
-        {tab === "tracker" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center mb-6">
-              <h2 className="text-3xl font-bold m-0 tracking-tight text-white">Application <span className="text-sky-400 font-normal">Tracker</span></h2>
-              <div className="flex-1" />
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-slate-400 font-medium">{trackerJobs.length} total applications</div>
-                {trackerJobs.length > 0 && (
-                  <button
-                    onClick={async () => { 
-                      if (window.confirm(`Clear all ${trackerJobs.length} tracker entries from database?`)) { 
-                        const ok = await clearAllJobs();
-                        if (ok) {
-                          setTrackerJobs([]); 
-                          setJobs([]); // Since tracker jobs are shared in the same table
-                          addLog("success", "CLEAR", "Tracker and results cleared from database."); 
-                        } else {
-                          addLog("error", "ERROR", "Failed to clear database.");
-                        }
-                      } 
-                    }}
-                    className="px-3.5 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-xs cursor-pointer flex items-center gap-2 hover:bg-red-500/20 transition-colors font-medium"
-                  >
-                    🗑 Clear All
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-6 gap-3 mb-8">
-              {computedStats.map(s => (
-                <div key={s.label} className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4 text-center shadow-lg hover:bg-white/5 transition-colors">
-                  <div className="text-3xl font-bold font-mono tracking-tight" style={{ color: s.color }}>{s.value}</div>
-                  <div className="text-[10px] text-slate-500 mt-1 uppercase tracking-widest font-bold">{s.label}</div>
-                </div>
-              ))}
-            </div>
-
-            <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-lg">
-              <table className="w-full border-collapse text-sm text-left">
-                <thead>
-                  <tr className="border-b border-white/10 bg-white/5">
-                    {["Role", "Company", "Location", "Score", "Status", "Posted", "Actions"].map(h => (
-                      <th key={h} className="py-3 px-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {trackerJobs.map((j, i) => (
-                    <tr
-                      key={j.id}
-                      className={`transition-colors hover:bg-white/5 ${i < trackerJobs.length - 1 ? 'border-b border-white/5' : ''}`}
-                    >
-                      <td className="py-3 px-4 font-bold text-slate-200">{j.title}</td>
-                      <td className="py-3 px-4 text-slate-400 font-medium">{j.company}</td>
-                      <td className="py-3 px-4 text-slate-500">{j.location}</td>
-                      <td className="py-3 px-4 w-[120px]"><ScoreBar score={(j.score || 0)} /></td>
-                      <td className="py-3 px-4"><Badge status={j.status} /></td>
-                      <td className="py-3 px-4 text-slate-500 font-mono text-xs">{j.posted}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => { setSelectedJob(j); setFilterStatus("All"); setTab("results"); }}
-                            className="px-3 py-1 rounded-md border border-white/10 bg-white/5 text-sky-400 text-[10px] font-bold tracking-wider uppercase cursor-pointer hover:bg-sky-500/10 hover:border-sky-500/30 transition-all"
-                          >
-                            View
-                          </button>
-                          <button
-                            onClick={() => { setSelectedAutofillJob(j); setTargetUrl(j.url || ""); setTab("autofill"); }}
-                            className="px-3 py-1 rounded-md border border-transparent bg-indigo-500/20 text-indigo-400 text-[10px] font-bold tracking-wider uppercase cursor-pointer hover:bg-indigo-500/30 transition-all"
-                          >
-                            Fill
-                          </button>
-                          <button
-                            onClick={async () => {
-                              const ok = await deleteJob(j.id);
-                              if (ok) {
-                                setTrackerJobs(prev => prev.filter(jj => jj.id !== j.id));
-                                setJobs(prev => prev.filter(jj => jj.id !== j.id));
-                                addLog("info", "DELETE", `Removed #${j.id} from tracker.`);
-                              } else {
-                                addLog("error", "ERROR", `Failed to delete #${j.id}.`);
-                              }
-                            }}
-                            title="Remove from tracker"
-                            className="px-2 py-1 rounded-md border border-red-500/20 bg-red-500/10 text-red-400 text-sm cursor-pointer hover:bg-red-500/20 hover:border-red-500/30 transition-all"
-                          >
-                            🗑
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ─── AUTO-FILL ─── */}
-        {tab === "autofill" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-3xl font-bold m-0 mb-2 tracking-tight text-white">Auto-Fill <span className="text-sky-400 font-normal">Agent</span></h2>
-            <p className="text-slate-400 text-sm m-0 mb-8">Upload your CV. The AI maps your profile to application form fields via Playwright automation.</p>
-
-            {selectedAutofillJob && (
-              <div className="bg-sky-500/10 border border-sky-500/30 rounded-2xl p-4 mb-6 flex items-center gap-4 shadow-[0_0_20px_rgba(56,189,248,0.1)] backdrop-blur-md">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold font-mono shadow-inner" style={{ background: `${selectedAutofillJob.color}20`, border: `1px solid ${selectedAutofillJob.color}40`, color: selectedAutofillJob.color }}>{selectedAutofillJob.logo}</div>
-                <div>
-                  <div className="text-sm font-bold text-slate-200">{selectedAutofillJob.title} — {selectedAutofillJob.company}</div>
-                  <div className="text-xs text-sky-400 font-medium">Pre-selected from results</div>
-                </div>
-                <button onClick={() => { setSelectedAutofillJob(null); setTargetUrl(""); }} className="ml-auto bg-transparent border-none text-slate-400 hover:text-slate-200 cursor-pointer text-xl p-2 transition-colors">×</button>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-6">
-              <div className="flex flex-col gap-6">
-                <input type="file" ref={fileInputRef} accept=".pdf,.json" className="hidden" onChange={(e) => setCvFile(e.target.files?.[0] || null)} />
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-3xl p-10 text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center min-h-[220px] ${cvFile ? "border-sky-500/50 bg-sky-500/5 shadow-[0_0_30px_rgba(56,189,248,0.1)]" : "border-white/20 bg-slate-950/40 hover:bg-white/5 hover:border-white/30 backdrop-blur-xl shadow-lg"}`}
-                >
-                  <div className="text-4xl mb-4">{cvFile ? "✅" : "📄"}</div>
-                  <div className="font-bold text-lg text-slate-200 mb-1">{cvFile ? `CV Loaded — ${cvFile.name}` : "Drop your CV here"}</div>
-                  <div className="text-xs text-slate-500 font-medium">{cvFile ? "Click to replace" : "PDF or JSON resume · max 5MB"}</div>
-                  {!cvFile && <div className="mt-6 px-6 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-sky-400 font-bold hover:bg-white/10 transition-colors shadow-lg">Browse Files</div>}
-                </div>
-
-                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg">
-                  <div className="text-xs text-slate-400 font-bold mb-4 tracking-widest uppercase">Field Mapping Preview</div>
-                  <div className="flex flex-col">
-                    {fieldMappings.map(([field, val, st], idx) => (
-                      <div key={field} className={`flex items-center gap-3 py-3 ${idx < fieldMappings.length - 1 ? 'border-b border-white/5' : ''}`}>
-                        <span className="w-4 text-center text-sm" style={{ color: st === "✓" ? "#10b981" : st === "⚠ check" ? "#f59e0b" : st === "✗ manual" ? "#ef4444" : "#475569" }}>{st}</span>
-                        <span className="text-xs font-medium text-slate-400 w-24 shrink-0">{field}</span>
-                        <span className="text-xs font-bold text-slate-200 truncate">{val}</span>
-                      </div>
-                    ))}
+                  {/* Log */}
+                  <div className="surface-elevated p-8">
+                    <div className="text-[11px] text-zinc-400 font-semibold tracking-widest uppercase mb-4">Auto-Fill Log</div>
+                    <AgentLog logs={logs.filter(l => ["AUTO-FILL", "PARSE-CV", "NAVIGATE", "MAP", "SUBMIT", "REVIEW", "DONE"].includes(l.prefix))} />
                   </div>
                 </div>
               </div>
+            </motion.div>
+          )}
 
-              <div className="flex flex-col gap-6">
-                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg">
-                  <div className="text-xs text-slate-400 font-bold mb-4 tracking-widest uppercase">Target Application</div>
-                  <input
-                    value={targetUrl}
-                    onChange={e => setTargetUrl(e.target.value)}
-                    placeholder="Paste job URL or select from results..."
-                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-200 font-medium focus:outline-none focus:border-sky-500/50 transition-colors shadow-inner"
-                  />
-                  {autofillDone && (
-                    <div className="mt-3 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs font-bold text-emerald-400 flex items-center gap-2">
-                      <span className="text-sm">✓</span> Auto-fill complete — review form before submitting
-                    </div>
-                  )}
-                  <div className="mt-4 flex gap-3">
-                    <button
-                      onClick={runAutofill}
-                      disabled={autofillRunning || (!targetUrl && !selectedAutofillJob)}
-                      className={`flex-1 py-3 rounded-xl border-none font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300 shadow-lg ${autofillRunning || (!targetUrl && !selectedAutofillJob) ? "bg-slate-800 text-slate-500 cursor-not-allowed" : "bg-gradient-to-br from-sky-400 to-indigo-500 text-white cursor-pointer hover:shadow-[0_0_20px_rgba(56,189,248,0.5)] hover:-translate-y-0.5"}`}
-                    >
-                      {autofillRunning
-                        ? <><span className="w-3.5 h-3.5 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" /> Filling...</>
-                        : "▶ Start Auto-Fill"
-                      }
-                    </button>
-                    <button className="px-5 py-3 rounded-xl border border-white/10 bg-white/5 text-slate-300 font-bold text-sm hover:bg-white/10 transition-colors cursor-pointer shadow-lg">Preview</button>
-                  </div>
-                </div>
+          {/* ═══ SETTINGS ═══ */}
+          {tab === "settings" && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+              <SectionHeader title="Configuration" highlight="& Settings" />
 
-                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg">
-                  <div className="text-xs text-slate-400 font-bold mb-5 tracking-widest uppercase">Automation Mode</div>
-                  <div className="flex flex-col gap-4">
-                    {(Object.entries(automationModes) as [string, boolean][]).map(([name, on]) => {
-                      const descs: Record<string, string> = {
-                        "Review Before Submit": "AI fills, you approve each section",
-                        "Full Auto": "AI fills and submits (risky)",
-                        "Stealth Mode": "Human-like delays + mouse moves",
-                      };
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* AI Backend */}
+                <div className="surface-elevated p-8">
+                  <div className="text-[11px] text-zinc-400 font-semibold tracking-widest uppercase mb-6">AI Backend</div>
+                  <div className="flex flex-col gap-3">
+                    {aiBackends.map(backend => {
+                      const { name, model, url, apiKey } = backend;
+                      const active = selectedAI === name;
                       return (
-                        <div key={name} className="flex items-center gap-4">
-                          <Toggle on={on} onChange={() => setAutomationModes(prev => ({ ...prev, [name]: !prev[name as keyof typeof automationModes] }))} />
-                          <div>
-                            <div className={`text-sm font-bold ${on ? "text-slate-200" : "text-slate-400"}`}>{name}</div>
-                            <div className="text-xs text-slate-500 font-medium">{descs[name]}</div>
+                        <div key={name}>
+                          <div
+                            onClick={() => { setSelectedAI(name); addLog("info", "CONFIG", `Switched to ${name} (${model})`); }}
+                            className={`surface-interactive flex items-center gap-3 px-3.5 py-3 cursor-pointer ${active ? "!border-violet-500/30 !bg-violet-500/5" : ""} ${active ? "rounded-b-none" : ""}`}
+                          >
+                            <div className={`w-2 h-2 rounded-full shrink-0 ${active ? "bg-emerald-400" : "bg-zinc-700"}`} />
+                            <div className="flex-1">
+                              <div className={`text-sm font-semibold ${active ? "text-zinc-100" : "text-zinc-500"}`}>{name}</div>
+                              <div className="text-[10px] text-zinc-600 font-mono">{model}</div>
+                            </div>
+                            {active ? <span className="chip bg-violet-500/10 text-violet-400 border border-violet-500/20">Active</span> : <ChevronDown size={14} className="text-zinc-600" />}
                           </div>
+                          {active && (
+                            <div className="bg-zinc-900/60 border border-violet-500/20 border-t-0 rounded-b-xl p-5 flex flex-col gap-4">
+                              {[
+                                { label: "Model", val: model, field: "model" as const, ph: "e.g. claude-sonnet-4-20250514" },
+                                { label: "Endpoint", val: url, field: "url" as const, ph: "https://api.anthropic.com/v1" },
+                                { label: "API Key", val: apiKey, field: "apiKey" as const, ph: name === "Ollama (Local)" ? "Not required" : "sk-…" },
+                              ].map(inp => (
+                                <div key={inp.label}>
+                                  <div className="text-[11px] text-zinc-400 font-semibold tracking-widest uppercase mb-2">{inp.label}</div>
+                                  <input
+                                    type={inp.field === "apiKey" ? "password" : "text"}
+                                    value={inp.val}
+                                    onChange={e => updateBackend(name, inp.field, e.target.value)}
+                                    placeholder={inp.ph}
+                                    className="input-base text-xs font-mono"
+                                  />
+                                </div>
+                              ))}
+                              <button
+                                onClick={async () => { addLog("success", "CONFIG", `Saved: ${name}`); await saveProfile({ ...profile, skills, aiBackends }); }}
+                                className="btn-primary self-start text-xs mt-1"
+                              >Save Changes</button>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
                   </div>
                 </div>
 
-                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg flex-1">
-                  <div className="text-xs text-slate-400 font-bold mb-3 tracking-widest uppercase">Auto-Fill Log</div>
-                  <AgentLog logs={logs.filter(l => ["AUTO-FILL", "PARSE-CV", "NAVIGATE", "MAP", "SUBMIT", "REVIEW", "DONE"].includes(l.prefix))} />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ─── SETTINGS ─── */}
-        {tab === "settings" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-3xl font-bold m-0 mb-8 tracking-tight text-white">Configuration <span className="text-sky-400 font-normal">& Settings</span></h2>
-            
-            <div className="grid grid-cols-2 gap-8">
-              <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg h-fit">
-                <div className="text-sm font-bold text-slate-400 mb-5 tracking-widest uppercase">AI Backend</div>
-                <div className="flex flex-col gap-3">
-                  {aiBackends.map((backend) => {
-                    const { name, model, url, apiKey } = backend;
-                    const active = selectedAI === name;
-                    return (
-                      <div key={name} className="flex flex-col">
-                        <div
-                          onClick={() => { setSelectedAI(name); addLog("info", "CONFIG", `AI backend switched to ${name} (${model})`); }}
-                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all ${active ? "bg-sky-500/10 border-sky-500/40 shadow-[0_0_15px_rgba(56,189,248,0.1)] rounded-b-none border-b-sky-500/20" : "bg-white/5 border-white/5 hover:bg-white/10"}`}
-                        >
-                          <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${active ? "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-600"}`} />
-                          <div className="flex-1">
-                            <div className={`text-sm font-bold ${active ? "text-slate-100" : "text-slate-400"}`}>{name}</div>
-                            <div className="text-[10px] text-slate-500 font-mono tracking-wide">{model}</div>
-                          </div>
-                          {active
-                            ? <span className="text-xs font-bold text-sky-400 bg-sky-500/20 px-2 py-0.5 rounded-md">Active ▾</span>
-                            : <span className="text-xs text-slate-500">▸</span>
-                          }
-                        </div>
-
-                        {active && (
-                          <div className="bg-slate-900/60 border border-sky-500/40 border-t-0 rounded-b-xl p-5 flex flex-col gap-4 shadow-inner">
-                            {/* Model */}
-                            <div>
-                              <div className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-1.5">Model</div>
-                              <input
-                                value={model}
-                                onChange={e => updateBackend(name, "model", e.target.value)}
-                                placeholder="e.g. claude-sonnet-4-20250514"
-                                className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500/50 transition-colors"
-                              />
-                            </div>
-                            {/* Endpoint URL */}
-                            <div>
-                              <div className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-1.5">API Endpoint URL</div>
-                              <input
-                                value={url}
-                                onChange={e => updateBackend(name, "url", e.target.value)}
-                                placeholder="https://api.anthropic.com/v1"
-                                className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500/50 transition-colors"
-                              />
-                            </div>
-                            {/* API Key */}
-                            <div>
-                              <div className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-1.5">API Key</div>
-                              <input
-                                type="password"
-                                value={apiKey}
-                                onChange={e => updateBackend(name, "apiKey", e.target.value)}
-                                placeholder={name === "Ollama (Local)" ? "Not required for local" : "sk-…"}
-                                className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500/50 transition-colors"
-                              />
-                            </div>
-                            <button
-                              onClick={async () => {
-                                addLog("success", "CONFIG", `Saved: ${name} → model=${model}, url=${url || "(default)"}, key=${apiKey ? "••••" + apiKey.slice(-4) : "(none)"}`);
-                                await saveProfile({ ...profile, skills, aiBackends });
-                              }}
-                              className="self-start px-5 py-2.5 rounded-lg border-none bg-gradient-to-br from-sky-400 to-indigo-500 text-white text-xs font-bold cursor-pointer mt-1 hover:shadow-[0_0_15px_rgba(56,189,248,0.4)] transition-shadow"
-                            >
-                              Save Changes
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-6">
-                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg">
-                  <div className="text-sm font-bold text-slate-400 mb-4 tracking-widest uppercase">Profile</div>
-                  <div className="flex flex-col">
+                <div className="flex flex-col gap-6">
+                  {/* Profile */}
+                  <div className="surface-elevated p-8">
+                    <div className="text-[11px] text-zinc-400 font-semibold tracking-widest uppercase mb-6">Profile</div>
                     {(Object.entries(profile) as [string, string][]).map(([k, v], idx) => (
-                      <div key={k} className={`flex justify-between items-center py-2.5 ${idx < Object.entries(profile).length - 1 ? 'border-b border-white/5' : ''}`}>
-                        <span className="text-xs font-medium text-slate-400 shrink-0">{k}</span>
-                        <input
-                          value={v}
-                          onChange={e => setProfile(prev => ({ ...prev, [k]: e.target.value }))}
-                          className="bg-transparent border-none text-slate-200 text-sm font-bold text-right focus:outline-none focus:text-sky-400 transition-colors flex-1"
-                        />
+                      <div key={k} className={`flex justify-between items-center py-3 ${idx < Object.entries(profile).length - 1 ? "border-b border-zinc-800/50" : ""}`}>
+                        <span className="text-xs text-zinc-500">{k}</span>
+                        <input value={v} onChange={e => setProfile(prev => ({ ...prev, [k]: e.target.value }))} className="bg-transparent border-none text-sm font-semibold text-zinc-200 text-right focus:outline-none focus:text-violet-400 transition-colors flex-1 ml-4" />
                       </div>
                     ))}
+                    <div className="mt-6">
+                      <div className="text-[10px] text-zinc-500 font-semibold tracking-widest uppercase mb-3">Skills</div>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {skills.map(s => (
+                          <span key={s} className="chip bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                            {s}
+                            <span onClick={() => setSkills(skills.filter(x => x !== s))} className="cursor-pointer hover:text-white transition-colors ml-1">×</span>
+                          </span>
+                        ))}
+                      </div>
+                      <input
+                        onKeyDown={e => { if (e.key === "Enter" && e.currentTarget.value) { setSkills([...skills, e.currentTarget.value]); e.currentTarget.value = ""; }}}
+                        placeholder="Add skill (Enter)…"
+                        className="input-base text-xs"
+                      />
+                    </div>
+                    <button
+                      onClick={async () => { const ok = await saveProfile({ ...profile, skills, aiBackends }); if (ok) addLog("success", "PROFILE", "Profile saved. ✓"); else addLog("error", "ERROR", "Failed to save."); }}
+                      className="btn-primary w-full mt-6 text-sm"
+                    >Save Profile</button>
                   </div>
-                  
-                  <div className="mt-5">
-                    <div className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-2.5">Skills</div>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {skills.map(s => (
-                        <span key={s} className="px-2.5 py-1 rounded-md bg-sky-500/10 text-sky-400 text-[10px] font-bold tracking-wide flex items-center gap-1.5 border border-sky-500/20">
-                          {s}
-                          <span onClick={() => setSkills(skills.filter(x => x !== s))} className="cursor-pointer hover:text-white transition-colors">×</span>
-                        </span>
+
+                  {/* Automation */}
+                  <div className="surface-elevated p-8">
+                    <div className="text-[11px] text-zinc-400 font-semibold tracking-widest uppercase mb-6">Automation Configurations</div>
+                    <div className="flex flex-col gap-4">
+                      {(Object.entries(automation) as [string, boolean][]).map(([label, on]) => (
+                        <div key={label} className="flex items-center justify-between">
+                          <span className={`text-sm font-semibold ${on ? "text-zinc-200" : "text-zinc-600"}`}>{label}</span>
+                          <Toggle on={on} onChange={() => setAutomation((prev: Record<string, boolean>) => ({ ...prev, [label]: !prev[label] }))} />
+                        </div>
                       ))}
                     </div>
-                    <input
-                      onKeyDown={e => {
-                        if (e.key === "Enter" && e.currentTarget.value) {
-                          setSkills([...skills, e.currentTarget.value]);
-                          e.currentTarget.value = "";
-                        }
-                      }}
-                      placeholder="Add skill (press Enter)..."
-                      className="w-full bg-slate-900/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500/50 transition-colors"
-                    />
                   </div>
 
-                  <button
-                    onClick={async () => {
-                      const ok = await saveProfile({ ...profile, skills, aiBackends });
-                      if (ok) addLog("success", "PROFILE", "Profile saved to database. ✓");
-                      else addLog("error", "ERROR", "Failed to save profile.");
-                    }}
-                    className="mt-6 px-5 py-2.5 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-400 text-sm font-bold cursor-pointer hover:bg-sky-500/20 transition-colors w-full"
-                  >
-                    💾 Save Profile
-                  </button>
-                </div>
-
-                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg">
-                  <div className="text-sm font-bold text-slate-400 mb-5 tracking-widest uppercase">Automation</div>
-                  <div className="flex flex-col gap-4">
-                    {(Object.entries(automation) as [string, boolean][]).map(([label, on]) => (
-                      <div key={label} className="flex items-center justify-between">
-                        <span className={`text-sm font-bold ${on ? "text-slate-200" : "text-slate-500"}`}>{label}</span>
-                        <Toggle on={on} onChange={() => setAutomation(prev => ({ ...prev, [label]: !prev[label as keyof typeof automation] }))} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-slate-950/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-lg">
-                  <div className="text-sm font-bold text-slate-400 mb-4 tracking-widest uppercase">Discovery Stats</div>
-                  <div className="flex flex-col">
+                  {/* Stats */}
+                  <div className="surface-elevated p-8">
+                    <div className="text-[11px] text-zinc-400 font-semibold tracking-widest uppercase mb-6">Discovery Stats</div>
                     {[
                       ["Total Searches", "12"],
                       ["Jobs Discovered", "247"],
-                      ["Applications Filed", String(trackerJobs.filter(j => j.status === "Applied" || j.status === "Interview" || j.status === "Offer").length)],
-                      ["Avg. Match Score", `${Math.round(trackerJobs.reduce((a, j) => a + (j.score || 0), 0) / Math.max(trackerJobs.length, 1))}/100`],
+                      ["Applications", String(trackerJobs.filter(j => ["Applied", "Interview", "Offer"].includes(j.status)).length)],
+                      ["Avg Score", `${Math.round(trackerJobs.reduce((a, j) => a + (j.score || 0), 0) / Math.max(trackerJobs.length, 1))}/100`],
                     ].map(([k, v], idx) => (
-                      <div key={k} className={`flex justify-between items-center py-2.5 ${idx < 3 ? 'border-b border-white/5' : ''}`}>
-                        <span className="text-xs font-medium text-slate-400">{k}</span>
-                        <span className="text-sm font-bold text-sky-400 font-mono tracking-tight">{v}</span>
+                      <div key={k} className={`flex justify-between items-center py-3 ${idx < 3 ? "border-b border-zinc-800/50" : ""}`}>
+                        <span className="text-xs text-zinc-500">{k}</span>
+                        <span className="text-sm font-bold font-mono text-violet-400">{v}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-      </div>
+            </motion.div>
+          )}
+
+        </div>
+      </main>
     </div>
   );
 }
