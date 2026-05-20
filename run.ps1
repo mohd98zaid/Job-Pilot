@@ -39,7 +39,7 @@ function Start-System {
         $apiPid = Start-ProcessWithLog -Name "API Server" -Path $apiServerDir -Command "pnpm run dev"
 
         # Start Frontend
-        $frontendPid = Start-ProcessWithLog -Name "Frontend" -Path $frontendDir -Command "pnpm run dev"
+        $frontendPid = Start-ProcessWithLog -Name "Frontend" -Path $frontendDir -Command "pnpm run dev > dev-frontend.log 2>&1"
 
         # Store PIDs
         "API_SERVER_PID=$apiPid" | Out-File $pidFile -Append
@@ -71,17 +71,17 @@ function Stop-System {
     foreach ($line in $pids) {
         if ($line -match "^([^_]+)_PID=(.+)$") {
             $name = $matches[1]
-            $pid = $matches[2]
+            $targetPid = $matches[2]
 
             try {
-                Write-Host "Stopping $name (PID $pid)..." -ForegroundColor White
+                Write-Host "Stopping $name (PID $targetPid)..." -ForegroundColor White
 
                 # Get the process
-                $process = Get-Process -Id $pid -ErrorAction SilentlyContinue
+                $process = Get-Process -Id $targetPid -ErrorAction SilentlyContinue
 
                 if ($process) {
                     # Kill the process and children
-                    Stop-Process $pid -Force
+                    Stop-Process $targetPid -Force
                     Write-Host "$name stopped successfully" -ForegroundColor Green
                 } else {
                     Write-Host "$name not running" -ForegroundColor Yellow
