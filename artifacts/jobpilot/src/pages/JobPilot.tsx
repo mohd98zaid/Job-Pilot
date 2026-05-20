@@ -583,8 +583,8 @@ export default function JobPilot() {
               </div>
 
               {/* Agent Log Panel */}
-              <div className="surface-elevated overflow-hidden flex flex-col" style={{ minHeight: "320px" }}>
-                <div className="px-7 py-5 border-b border-white/[0.06] flex items-center justify-between">
+              <div className="surface-elevated overflow-hidden flex flex-col h-[300px]">
+                <div className="px-7 py-5 border-b border-white/[0.06] flex items-center justify-between shrink-0">
                   <span className="text-[13px] font-bold text-zinc-300 uppercase tracking-wider">Agent Log</span>
                   <button onClick={() => setLogs([])} className="text-[11px] text-zinc-500 hover:text-zinc-300 font-semibold flex items-center gap-1.5 transition-colors">
                     <Trash2 size={12} /> Clear Log
@@ -699,6 +699,14 @@ export default function JobPilot() {
                         onClick={() => { setSelectedAutofillJob(selectedJob); setTargetUrl(selectedJob.url || ""); setTab("autofill"); }}
                         className="btn-primary w-full flex items-center justify-center gap-2 text-sm"
                       ><Wand2 size={14} /> Auto-Fill Application</button>
+                      {selectedJob.url && (
+                        <a
+                          href={selectedJob.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-secondary w-full flex items-center justify-center gap-2 text-sm mt-3"
+                        ><ExternalLink size={14} /> View Job Posting</a>
+                      )}
                     </div>
                   )}
                 </div>
