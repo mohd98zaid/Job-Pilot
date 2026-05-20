@@ -37,7 +37,7 @@ const ScoreBar = ({ score }: { score: number }) => {
   const color = score >= 90 ? "#34d399" : score >= 80 ? "#fbbf24" : score >= 60 ? "#fb923c" : "#f87171";
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-1 bg-zinc-800 rounded-full overflow-hidden">
+      <div className="flex-1 h-1 bg-[#0A0A0A] rounded-full overflow-hidden">
         <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${score}%`, background: color }} />
       </div>
       <span className="text-xs font-mono font-semibold tabular-nums" style={{ color, minWidth: 24 }}>{score}</span>
@@ -78,7 +78,7 @@ const AgentLog = ({ logs }: { logs: LogEntry[] }) => {
 const Toggle = ({ on, onChange }: { on: boolean; onChange: () => void }) => (
   <div
     onClick={onChange}
-    className={`w-9 h-5 rounded-full relative cursor-pointer shrink-0 transition-colors duration-200 ${on ? "bg-blue-600" : "bg-zinc-800"}`}
+    className={`w-9 h-5 rounded-full relative cursor-pointer shrink-0 transition-colors duration-200 ${on ? "bg-blue-600" : "bg-[#0A0A0A]"}`}
   >
     <div className={`w-3.5 h-3.5 rounded-full bg-white absolute top-[3px] transition-all duration-200 ${on ? "left-[19px]" : "left-[3px]"}`} />
   </div>
@@ -278,7 +278,7 @@ export default function JobPilot() {
     <div className="min-h-screen flex relative z-10">
 
       {/* ─── SIDEBAR ─── */}
-      <aside className="w-[240px] shrink-0 h-screen sticky top-0 flex flex-col border-r border-white/5 bg-[#0D1017] z-30">
+      <aside className="w-[240px] shrink-0 h-screen sticky top-0 flex flex-col border-r border-white/5 bg-[#000000] z-30">
         {/* Logo */}
         <div className="px-6 pt-7 pb-6 flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-blue-500/20">
@@ -299,7 +299,7 @@ export default function JobPilot() {
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 className={`relative flex items-center gap-3 px-4 py-3 rounded-lg text-[13px] font-medium transition-all duration-150 border border-transparent cursor-pointer ${
-                  active ? "nav-active" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900"
+                  active ? "nav-active" : "text-zinc-500 hover:text-zinc-300 hover:bg-[#050505]"
                 }`}
               >
                 <t.icon size={16} strokeWidth={active ? 2.2 : 1.8} />
@@ -314,7 +314,7 @@ export default function JobPilot() {
 
         {/* Sidebar bottom – status */}
         <div className="px-4 py-4 mt-auto">
-          <div className="bg-[#11141C] border border-white/5 rounded-xl p-3 cursor-pointer hover:bg-[#161B22] transition-colors flex items-center justify-between">
+          <div className="bg-[#050505] border border-white/5 rounded-xl p-3 cursor-pointer hover:bg-[#0A0A0A] transition-colors flex items-center justify-between">
             <div className="flex flex-col gap-1">
               <span className="text-xs font-semibold text-zinc-200">{selectedAI}</span>
               <div className="flex items-center gap-1.5">
@@ -350,7 +350,7 @@ export default function JobPilot() {
               {total === 0 ? (
                 /* Empty state */
                 <div className="flex flex-col items-center justify-center py-28 text-center">
-                  <div className="w-24 h-24 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-8">
+                  <div className="w-24 h-24 rounded-2xl bg-[#050505] border border-zinc-800 flex items-center justify-center mb-8">
                     <Rocket size={36} className="text-blue-400" />
                   </div>
                   <h3 className="text-2xl font-bold text-zinc-200 mb-3">Your career launchpad awaits</h3>
@@ -395,7 +395,7 @@ export default function JobPilot() {
                                 <span className="text-xs text-zinc-500">{label}</span>
                                 <span className="text-xs font-mono font-semibold" style={{ color: colors.text }}>{count}</span>
                               </div>
-                              <div className="h-1 bg-zinc-800/80 rounded-full overflow-hidden">
+                              <div className="h-1 bg-[#0A0A0A]/80 rounded-full overflow-hidden">
                                 <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(count / maxC) * 100}%`, background: colors.text }} />
                               </div>
                             </div>
@@ -450,22 +450,22 @@ export default function JobPilot() {
                 {/* Form Grid - Row 1: Target Role + Region */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
                   {/* Target Role - 7 cols */}
-                  <div className="col-span-7 bg-[#1A1F2E] border border-white/[0.06] rounded-2xl p-6">
+                  <div className="col-span-7 bg-[#0A0A0A] border border-white/[0.06] rounded-2xl p-6">
                     <label className="flex items-center gap-2 text-[11px] text-zinc-400 font-bold tracking-widest uppercase mb-4">
                       <User size={13} className="text-zinc-500" /> Target Role
                     </label>
-                    <div className="bg-[#0F1219] border border-white/[0.06] rounded-xl flex items-center px-4 py-1">
+                    <div className="bg-[#050505] border border-white/[0.06] rounded-xl flex items-center px-4 py-1">
                       <User size={15} className="text-zinc-600 shrink-0" />
                       <input value={role} onChange={e => setRole(e.target.value)} placeholder="e.g. GenAI Architect" className="input-base bg-transparent border-none focus:ring-0 focus:box-shadow-none px-3 py-3" />
                     </div>
                   </div>
 
                   {/* Region - 5 cols */}
-                  <div className="col-span-5 bg-[#1A1F2E] border border-white/[0.06] rounded-2xl p-6">
+                  <div className="col-span-5 bg-[#0A0A0A] border border-white/[0.06] rounded-2xl p-6">
                     <label className="flex items-center gap-2 text-[11px] text-zinc-400 font-bold tracking-widest uppercase mb-4">
                       <Globe size={13} className="text-zinc-500" /> Region / Market
                     </label>
-                    <div className="bg-[#0F1219] border border-white/[0.06] rounded-xl flex items-center px-4 py-1">
+                    <div className="bg-[#050505] border border-white/[0.06] rounded-xl flex items-center px-4 py-1">
                       <Globe size={15} className="text-zinc-600 shrink-0" />
                       <input value={region} onChange={e => setRegion(e.target.value)} placeholder="e.g. Gulf / GCC" className="input-base bg-transparent border-none focus:ring-0 focus:box-shadow-none px-3 py-3" />
                     </div>
@@ -475,36 +475,36 @@ export default function JobPilot() {
                 {/* Form Grid - Row 2: Company + Site + Date */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                   {/* Company */}
-                  <div className="bg-[#1A1F2E] border border-white/[0.06] rounded-2xl p-6">
+                  <div className="bg-[#0A0A0A] border border-white/[0.06] rounded-2xl p-6">
                     <label className="flex items-center gap-2 text-[11px] text-zinc-400 font-bold tracking-widest uppercase mb-4">
                       <Building2 size={13} className="text-zinc-500" /> Company
                     </label>
-                    <div className="bg-[#0F1219] border border-white/[0.06] rounded-xl flex items-center px-4 py-1">
+                    <div className="bg-[#050505] border border-white/[0.06] rounded-xl flex items-center px-4 py-1">
                       <Building2 size={15} className="text-zinc-600 shrink-0" />
                       <input value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} placeholder="e.g. G42, ADNOC" className="input-base bg-transparent border-none focus:ring-0 focus:box-shadow-none px-3 py-3" />
                     </div>
                   </div>
 
                   {/* Site */}
-                  <div className="bg-[#1A1F2E] border border-white/[0.06] rounded-2xl p-6">
+                  <div className="bg-[#0A0A0A] border border-white/[0.06] rounded-2xl p-6">
                     <label className="flex items-center gap-2 text-[11px] text-zinc-400 font-bold tracking-widest uppercase mb-4">
                       <Link size={13} className="text-zinc-500" /> Site
                     </label>
-                    <div className="bg-[#0F1219] border border-white/[0.06] rounded-xl flex items-center px-4 py-1">
+                    <div className="bg-[#050505] border border-white/[0.06] rounded-xl flex items-center px-4 py-1">
                       <Link size={15} className="text-zinc-600 shrink-0" />
                       <input value={siteFilter} onChange={e => setSiteFilter(e.target.value)} placeholder="e.g. greenhouse.io" className="input-base bg-transparent border-none focus:ring-0 focus:box-shadow-none px-3 py-3" />
                     </div>
                   </div>
 
                   {/* Date */}
-                  <div className="bg-[#1A1F2E] border border-white/[0.06] rounded-2xl p-6">
+                  <div className="bg-[#0A0A0A] border border-white/[0.06] rounded-2xl p-6">
                     <label className="flex items-center gap-2 text-[11px] text-zinc-400 font-bold tracking-widest uppercase mb-4">
                       <CalendarDays size={13} className="text-zinc-500" /> Date
                     </label>
-                    <div className="bg-[#0F1219] border border-white/[0.06] rounded-xl flex items-center px-3 py-1">
+                    <div className="bg-[#050505] border border-white/[0.06] rounded-xl flex items-center px-3 py-1">
                       <CalendarDays size={15} className="text-zinc-600 shrink-0 ml-1" />
                       <select value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="input-base bg-transparent border-none focus:ring-0 focus:box-shadow-none px-3 py-3 cursor-pointer text-zinc-300 font-medium appearance-none">
-                        {["Last 24 hours", "Last 7 days", "Last 14 days", "Last 30 days"].map(o => <option key={o} value={o} className="bg-[#0F1219]">{o}</option>)}
+                        {["Last 24 hours", "Last 7 days", "Last 14 days", "Last 30 days"].map(o => <option key={o} value={o} className="bg-[#050505]">{o}</option>)}
                       </select>
                       <ChevronDown size={14} className="text-zinc-500 shrink-0 mr-1" />
                     </div>
@@ -590,7 +590,7 @@ export default function JobPilot() {
                     <Trash2 size={12} /> Clear Log
                   </button>
                 </div>
-                <div className="flex-1 p-0 overflow-y-auto bg-[#0B0F15]">
+                <div className="flex-1 p-0 overflow-y-auto bg-[#000000]">
                   <AgentLog logs={logs} />
                 </div>
               </div>
@@ -619,7 +619,7 @@ export default function JobPilot() {
                     key={s}
                     onClick={() => setFilterStatus(s)}
                     className={`px-4 py-2.5 rounded-xl text-xs font-medium cursor-pointer transition-all duration-200 border ${
-                      filterStatus === s ? "shadow-lg shadow-black/20 border-violet-500/40 bg-violet-500/15 text-violet-300" : "bg-transparent border-zinc-800/60 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300 hover:bg-zinc-900/50"
+                      filterStatus === s ? "shadow-lg shadow-black/20 border-violet-500/40 bg-violet-500/15 text-violet-300" : "bg-transparent border-zinc-800/60 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300 hover:bg-[#050505]/50"
                     }`}
                   >{s}</button>
                 ))}
@@ -653,7 +653,7 @@ export default function JobPilot() {
                           <div className="text-[11px] text-zinc-600 truncate">{job.company} · {job.location} · {job.posted}</div>
                         </div>
                         <div className="min-w-[100px]"><ScoreBar score={job.score || 0} /></div>
-                        <span className="text-[10px] text-zinc-600 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded font-mono shrink-0">{job.source}</span>
+                        <span className="text-[10px] text-zinc-600 bg-[#050505] border border-zinc-800 px-2 py-0.5 rounded font-mono shrink-0">{job.source}</span>
                         <button
                           aria-label="Delete Job"
                           title="Delete Job"
@@ -676,11 +676,11 @@ export default function JobPilot() {
                       </div>
                       <div className="mb-6">
                         <div className="text-[11px] text-zinc-400 font-semibold tracking-widest uppercase mb-3">AI Match Analysis</div>
-                        <div className="text-sm text-zinc-300 leading-relaxed bg-zinc-900/60 rounded-xl p-5 border-l-2 border-l-violet-500 border border-zinc-800 shadow-inner">{selectedJob.match}</div>
+                        <div className="text-sm text-zinc-300 leading-relaxed bg-[#050505]/60 rounded-xl p-5 border-l-2 border-l-violet-500 border border-zinc-800 shadow-inner">{selectedJob.match}</div>
                       </div>
                       <div className="grid grid-cols-2 gap-3 mb-5">
                         {[["Score", `${selectedJob.score}/100`], ["Location", selectedJob.location], ["Salary", selectedJob.salary], ["Source", selectedJob.source]].map(([k, v]) => (
-                          <div key={k} className="bg-zinc-900/60 rounded-xl p-3 border border-zinc-800">
+                          <div key={k} className="bg-[#050505]/60 rounded-xl p-3 border border-zinc-800">
                             <div className="text-[9px] text-zinc-600 uppercase tracking-widest font-semibold mb-1">{k}</div>
                             <div className="text-xs font-medium text-zinc-300 truncate">{v}</div>
                           </div>
@@ -742,7 +742,7 @@ export default function JobPilot() {
               <div className="surface-elevated overflow-hidden overflow-x-auto rounded-2xl">
                 <table className="w-full border-collapse text-sm text-left">
                   <thead>
-                    <tr className="border-b border-zinc-800/60 bg-zinc-900/30">
+                    <tr className="border-b border-zinc-800/60 bg-[#050505]/30">
                       {["Role", "Company", "Location", "Score", "Status", "Posted", "Actions"].map(h => (
                         <th key={h} className="py-4 px-6 text-[10px] text-zinc-400 font-semibold uppercase tracking-widest">{h}</th>
                       ))}
@@ -750,7 +750,7 @@ export default function JobPilot() {
                   </thead>
                   <tbody>
                     {trackerJobs.map((j, i) => (
-                      <tr key={j.id} className={`transition-colors hover:bg-zinc-800/30 ${i < trackerJobs.length - 1 ? "border-b border-zinc-800/40" : ""}`}>
+                      <tr key={j.id} className={`transition-colors hover:bg-[#0A0A0A]/30 ${i < trackerJobs.length - 1 ? "border-b border-zinc-800/40" : ""}`}>
                         <td className="py-5 px-6 font-semibold text-zinc-200">{j.title}</td>
                         <td className="py-5 px-6 text-zinc-400">{j.company}</td>
                         <td className="py-5 px-6 text-zinc-500">{j.location}</td>
@@ -890,7 +890,7 @@ export default function JobPilot() {
                             {active ? <span className="chip bg-violet-500/10 text-violet-400 border border-violet-500/20">Active</span> : <ChevronDown size={14} className="text-zinc-600" />}
                           </div>
                           {active && (
-                            <div className="bg-zinc-900/60 border border-violet-500/20 border-t-0 rounded-b-xl p-5 flex flex-col gap-4">
+                            <div className="bg-[#050505]/60 border border-violet-500/20 border-t-0 rounded-b-xl p-5 flex flex-col gap-4">
                               {[
                                 { label: "Model", val: model, field: "model" as const, ph: "e.g. claude-sonnet-4-20250514" },
                                 { label: "Endpoint", val: url, field: "url" as const, ph: "https://api.anthropic.com/v1" },
