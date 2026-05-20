@@ -5,7 +5,7 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 // Fixed configuration without environment variables
-const port = 5173;
+const port = 5175;
 const basePath = "/";
 
 export default defineConfig({
