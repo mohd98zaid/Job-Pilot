@@ -655,6 +655,8 @@ export default function JobPilot() {
                         <div className="min-w-[100px]"><ScoreBar score={job.score || 0} /></div>
                         <span className="text-[10px] text-zinc-600 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded font-mono shrink-0">{job.source}</span>
                         <button
+                          aria-label="Delete Job"
+                          title="Delete Job"
                           onClick={async e => { e.stopPropagation(); const ok = await deleteJob(job.id); if (ok) { setJobs(p => p.filter(j => j.id !== job.id)); if (selectedJob?.id === job.id) setSelectedJob(null); addLog("info", "DELETE", `Job #${job.id} removed.`); }}}
                           className="text-zinc-700 hover:text-red-400 cursor-pointer p-1 rounded transition-colors hover:bg-red-500/10 shrink-0"
                         ><Trash2 size={14} /></button>
@@ -670,7 +672,7 @@ export default function JobPilot() {
                           <div className="font-bold text-lg text-zinc-100 leading-tight mb-1">{selectedJob.title}</div>
                           <div className="text-zinc-400 text-sm">{selectedJob.company}</div>
                         </div>
-                        <button onClick={() => setSelectedJob(null)} className="text-zinc-500 hover:text-zinc-200 cursor-pointer text-2xl p-0 bg-transparent border-none transition-colors">×</button>
+                        <button aria-label="Close Job Details" title="Close" onClick={() => setSelectedJob(null)} className="text-zinc-500 hover:text-zinc-200 cursor-pointer text-2xl p-0 bg-transparent border-none transition-colors">×</button>
                       </div>
                       <div className="mb-6">
                         <div className="text-[11px] text-zinc-400 font-semibold tracking-widest uppercase mb-3">AI Match Analysis</div>
@@ -749,9 +751,9 @@ export default function JobPilot() {
                         <td className="py-5 px-6 text-zinc-500 font-mono text-xs">{j.posted}</td>
                         <td className="py-5 px-6">
                           <div className="flex gap-2">
-                            <button onClick={() => { setSelectedJob(j); setTab("results"); }} className="btn-secondary text-xs px-3 py-1.5"><Eye size={14} /></button>
-                            <button onClick={() => { setSelectedAutofillJob(j); setTargetUrl(j.url || ""); setTab("autofill"); }} className="btn-secondary text-xs px-3 py-1.5"><Wand2 size={14} /></button>
-                            <button onClick={async () => { const ok = await deleteJob(j.id); if (ok) { setTrackerJobs(p => p.filter(jj => jj.id !== j.id)); setJobs(p => p.filter(jj => jj.id !== j.id)); }}} className="btn-danger text-xs px-2.5 py-1.5"><Trash2 size={14} /></button>
+                            <button aria-label="View Job Details" title="View Job Details" onClick={() => { setSelectedJob(j); setTab("results"); }} className="btn-secondary text-xs px-3 py-1.5"><Eye size={14} /></button>
+                            <button aria-label="Auto-Fill Application" title="Auto-Fill Application" onClick={() => { setSelectedAutofillJob(j); setTargetUrl(j.url || ""); setTab("autofill"); }} className="btn-secondary text-xs px-3 py-1.5"><Wand2 size={14} /></button>
+                            <button aria-label="Delete Job" title="Delete Job" onClick={async () => { const ok = await deleteJob(j.id); if (ok) { setTrackerJobs(p => p.filter(jj => jj.id !== j.id)); setJobs(p => p.filter(jj => jj.id !== j.id)); }}} className="btn-danger text-xs px-2.5 py-1.5"><Trash2 size={14} /></button>
                           </div>
                         </td>
                       </tr>
@@ -775,7 +777,7 @@ export default function JobPilot() {
                     <div className="text-sm font-semibold text-zinc-200">{selectedAutofillJob.title} — {selectedAutofillJob.company}</div>
                     <div className="text-[11px] text-violet-400">Pre-selected from results</div>
                   </div>
-                  <button onClick={() => { setSelectedAutofillJob(null); setTargetUrl(""); }} className="text-zinc-600 hover:text-zinc-300 cursor-pointer text-lg bg-transparent border-none transition-colors">×</button>
+                  <button aria-label="Close Auto-Fill" title="Close" onClick={() => { setSelectedAutofillJob(null); setTargetUrl(""); }} className="text-zinc-600 hover:text-zinc-300 cursor-pointer text-lg bg-transparent border-none transition-colors">×</button>
                 </div>
               )}
 
