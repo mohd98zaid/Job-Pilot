@@ -26,13 +26,14 @@ import { scrapeIndiaPortals } from "./scrapers/india-portals.scraper.js";
 import { scrapeGCCPortals } from "./scrapers/gcc-portals.scraper.js";
 
 // ── Pipeline 2: Legacy Playwright scrapers (fallback, unreliable) ────────────
-import { scrapeLinkedIn } from "./scrapers/linkedin.scraper.js";
 import { scrapeNaukri } from "./scrapers/naukri.scraper.js";
 import { scrapeIndeed } from "./scrapers/indeed.scraper.js";
 import { scrapeHirect } from "./scrapers/hirect.scraper.js";
 import { scrapeInstaHyre } from "./scrapers/instahyre.scraper.js";
+import { scrapeLinkedIn } from "./scrapers/linkedin.scraper.js";
 import { scrapeBayt } from "./scrapers/bayt.scraper.js";
 import { scrapeCustomPortal } from "./scrapers/custom-portal.scraper.js";
+
 
 // ── Pipeline 3: AI-powered discovery ─────────────────────────────────────────
 import { runAIDiscovery } from "./ai-discovery.service.js";
@@ -65,7 +66,6 @@ const API_SCRAPERS: Record<
   (opts: SearchOptions, onJob: JobEmitter, onLog: LogEmitter) => Promise<ScrapedJob[]>
 > = {
   "RemoteOK":         scrapeRemoteOK,
-  "LinkedIn":         scrapeLinkedInGuest,
   "Arbeitnow":        scrapeArbeitnow,
   "JSearch":          scrapeJSearch,
   "NaukriGulf":       scrapeNaukriGulf,
@@ -82,6 +82,7 @@ const PLAYWRIGHT_SCRAPERS: Record<
   string,
   (opts: SearchOptions, onJob: JobEmitter, onLog: LogEmitter) => Promise<ScrapedJob[]>
 > = {
+  "LinkedIn":  scrapeLinkedIn,
   "Naukri":    scrapeNaukri,
   "Indeed":    scrapeIndeed,
   "Hirect":    scrapeHirect,
@@ -168,6 +169,7 @@ export async function runJobSearch(
     role, 
     region, 
     dateFilter, 
+    sessionId,
     aliases: expansion.variations 
   };
 
@@ -253,23 +255,10 @@ export async function runJobSearch(
 
   // ── Region-aware source selection ──────────────────────────────────────────
   // India-only platforms will always return 0 for Gulf searches.
-  // Auto-inject Gulf-specific sources and skip India-only ones.
   if (isGulfRegion(region)) {
     standardSources = standardSources.filter(s => !INDIA_ONLY_SOURCES.includes(s));
-    for (const s of ["NaukriGulf", "Bayt", "GCC Portals", "Company Careers"]) {
-      if (!standardSources.includes(s)) {
-        standardSources.push(s);
-        emit({ type: "log", level: "info", message: `Auto-added ${s} for Gulf region search` });
-      }
-    }
   } else if (isIndiaRegion(region)) {
     standardSources = standardSources.filter(s => s !== "NaukriGulf" && s !== "Bayt" && s !== "GCC Portals");
-    for (const s of ["India Portals", "Company Careers"]) {
-      if (!standardSources.includes(s)) {
-        standardSources.push(s);
-        emit({ type: "log", level: "info", message: `Auto-added ${s} for India region search` });
-      }
-    }
   }
 
   for (const source of standardSources) {
@@ -349,28 +338,7 @@ export async function runJobSearch(
     }
   }
 
-  // ── If no results at all, run AI Discovery as fallback ───────────────────────
-  if (allJobs.length === 0 && !runAIDiscoveryPipeline) {
-    emit({
-      type: "log",
-      level: "info",
-      message: "⚠️ No results from feed scrapers — activating AI Discovery fallback...",
-    });
-    try {
-      await runAIDiscovery(
-        { role, region, dateFilter, sessionId },
-        (p) => {
-          if (p.type === "job" && p.job) {
-            onJob(p.job);
-          } else if (p.type === "log" && p.level && p.message) {
-            emit({ type: "log", level: p.level, message: p.message });
-          }
-        }
-      );
-    } catch (err: any) {
-      emit({ type: "log", level: "error", message: `AI Discovery fallback failed: ${err.message}` });
-    }
-  }
+
 
   // ── Done ─────────────────────────────────────────────────────────────────────
   emit({

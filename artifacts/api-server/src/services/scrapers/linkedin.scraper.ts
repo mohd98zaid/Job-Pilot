@@ -1,5 +1,5 @@
 // artifacts/api-server/src/services/scrapers/linkedin.scraper.ts
-import { type Browser } from "playwright";
+import { type Browser } from "patchright";
 import { getBrowser, newStealthContext, humanDelay, humanScroll } from "./browser.js";
 import { type ScrapedJob, type SearchOptions, type JobEmitter, type LogEmitter } from "./types.js";
 import { logger } from "../../lib/logger.js";

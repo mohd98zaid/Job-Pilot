@@ -17,6 +17,7 @@ const searchSchema = z.object({
   sources: z.array(z.string()).min(1),
   customPortalIds: z.array(z.number()).optional(),
   dateFilter: z.string().optional(),
+  sessionId: z.string().optional(),
 });
 
 const portalSchema = z.object({
@@ -57,6 +58,7 @@ router.get("/", async (_req, res) => {
       score:       j.aiScore       ?? 0,
       match:       j.aiMatchReason ?? "",
       posted:      j.postedAt      ?? j.createdAt ?? "",
+      scrapedAt:   j.createdAt     ?? "",
       logo:        sourceToLogo(j.source),
       color:       sourceToColor(j.source),
     }));

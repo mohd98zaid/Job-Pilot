@@ -11,7 +11,7 @@ import { type ScrapedJob } from "./scrapers/types.js";
 import { isJobRelevant } from "./scrapers/relevance.js";
 import { AIService } from "./ai.service.js";
 import { getBrowser, newStealthContext, humanDelay, incrementActiveTasks, decrementActiveTasks } from "./scrapers/browser.js";
-import { type Page } from "playwright";
+import { type Page } from "patchright";
 import { db } from "@workspace/db";
 import { discoveryLogsTable } from "@workspace/db/schema/discovery-logs";
 
@@ -172,10 +172,10 @@ const MAX_QUERIES_AFTER_CAPTCHA = 3; // Allow 3 queries after solving, then skip
  * queries so Bing cookies/session survive between searches (no per-query CAPTCHA).
  */
 let bingSessionCtx: Awaited<ReturnType<typeof newStealthContext>> | null = null;
-let bingSessionPage: import("playwright").Page | null = null;
+let bingSessionPage: import("patchright").Page | null = null;
 const BING_COOLDOWN_MS = 4000;     // Delay between Bing queries to avoid re-triggering
 
-async function getBingPage(headless: boolean): Promise<import("playwright").Page> {
+async function getBingPage(headless: boolean): Promise<import("patchright").Page> {
   // Reuse existing page if healthy
   if (bingSessionPage && !bingSessionPage.isClosed()) return bingSessionPage;
 
@@ -288,7 +288,7 @@ async function attemptEngineSearch(
   // ── Other engines: ephemeral context per query ────────────────────────────
   incrementActiveTasks();
   let ctx: Awaited<ReturnType<typeof newStealthContext>> | null = null;
-  let page: import("playwright").Page | null = null;
+  let page: import("patchright").Page | null = null;
 
   try {
     const browser = await getBrowser(!headfulModeActive);
@@ -407,7 +407,7 @@ async function searchWeb(
           // Other engines: ephemeral headful context
           incrementActiveTasks();
           let headfulCtx: Awaited<ReturnType<typeof newStealthContext>> | null = null;
-          let headfulPage: import("playwright").Page | null = null;
+          let headfulPage: import("patchright").Page | null = null;
 
           try {
             const headfulBrowser = await getBrowser(false);

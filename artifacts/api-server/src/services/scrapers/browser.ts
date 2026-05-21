@@ -5,7 +5,7 @@
 // Each scraper gets its OWN ephemeral BrowserContext (isolated tab group).
 // Closing a scraper's context NEVER affects other scrapers or the global browser.
 
-import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { chromium, type Browser, type BrowserContext, type Page } from "patchright";
 import { logger } from "../../lib/logger.js";
 
 import path from "path";

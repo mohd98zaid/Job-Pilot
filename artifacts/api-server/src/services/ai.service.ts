@@ -138,10 +138,10 @@ Salary: ${job.salary || 'Not specified'}
 Description: ${job.description}
 
     **Candidate Profile:**
-    Name: ${profile.name || profile.Name || "User"}
-    Current Role: ${profile.currentRole || profile["Current Role"] || "Software Engineer"}
-    Target Market: ${profile.targetMarket || profile["Target Market"] || "Global"}
-    Experience: ${profile.yearsOfExperience || profile["Years of Exp."] || "5"}
+    Name: ${profile.name || "User"}
+    Current Role: ${profile.currentRole || "Software Engineer"}
+    Target Market: ${profile.targetMarket || "Global"}
+    Experience: ${profile.yearsOfExperience || "5"}
     Skills: ${Array.isArray(profile.skills) ? profile.skills.join(", ") : ""}
     CV Summary: ${(profile.cvText || "").substring(0, 500) || "Not provided"}
 
@@ -468,7 +468,7 @@ For each common application field, provide:
 3. Match Status ("✓" for high confidence, "⚠ check" if unsure, "✗ manual" if missing)
 
     **Job:** ${job.title} at ${job.company}
-    **Candidate:** ${profile.name || profile.Name || "User"} (${profile.currentRole || profile["Current Role"] || "Software Engineer"})
+    **Candidate:** ${profile.name || "User"} (${profile.currentRole || "Software Engineer"})
     **Skills:** ${Array.isArray(profile.skills) ? profile.skills.join(", ") : ""}
     **CV Text:** ${(profile.cvText || "").substring(0, 1000) || "Not provided"}
 

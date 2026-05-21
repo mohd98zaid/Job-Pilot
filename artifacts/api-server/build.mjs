@@ -36,7 +36,7 @@ async function buildAll() {
         "lightningcss", "pg-native", "oracledb", "protobufjs", "onnxruntime-node",
         "@tensorflow/*", "@swc/*", "@aws-sdk/*", "@azure/*", "googleapis",
         "piscina", "grpc", "mysql2", "pg", "newrelic", "knex", "typeorm",
-        "node:*"
+        "node:*", "patchright-core", "playwright", "playwright-core", "chromium-bidi/*"
       ]
     ],
     sourcemap: "linked",

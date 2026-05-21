@@ -21,6 +21,7 @@ export interface SearchOptions {
   maxResults?: number;
   aliases?: string[];    // AI-expanded role variations
   exclusions?: string[]; // Keywords to filter out
+  sessionId?: string;
 }
 
 export interface ScrapeResult {
